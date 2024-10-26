@@ -1,3 +1,5 @@
+mod action;
+
 use axum::http::Method;
 use axum::Router;
 use axum::{
@@ -5,7 +7,6 @@ use axum::{
     extract::FromRequestParts,
     http::{request::Parts, StatusCode},
     response::{IntoResponse, Response},
-    routing::{get, post},
     Json, RequestPartsExt,
 };
 use axum_extra::{
@@ -16,10 +17,20 @@ use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation}
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use shuttle_runtime::SecretStore;
 use std::fmt::Display;
+use std::sync::Arc;
 use std::time::SystemTime;
+use axum::routing::{delete, get, post, put};
+use shuttle_runtime::__internals::Context;
+use tokio_postgres::{Client, NoTls};
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
+
+#[derive(Clone)]
+pub struct DbState {
+    pub client: Arc<Client>,
+}
 
 static KEYS: Lazy<Keys> = Lazy::new(|| {
     // note that in production, you will probably want to use a random SHA-256 hash or similar
@@ -28,12 +39,37 @@ static KEYS: Lazy<Keys> = Lazy::new(|| {
 });
 
 #[shuttle_runtime::main]
-async fn main() -> shuttle_axum::ShuttleAxum {
+async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum::ShuttleAxum {
     let cors = CorsLayer::new()
         // allow `GET` and `POST` when accessing the resource
         .allow_methods([Method::GET, Method::POST])
         // allow requests from any origin
         .allow_origin(Any);
+
+    let secret = secrets
+        .get("MY_SECRET_KEY")
+        .context("secret was not found")?;
+
+    let db_connection = secrets
+        .get("DB_CONNECTION")
+        .context("secret was not found")?;
+
+    let (client, connection) = tokio_postgres::connect(&db_connection, NoTls)
+        .await
+        .expect("Failed to connect to the database");
+
+    // Spawn the connection handler
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("connection error: {}", e);
+        }
+    });
+
+    let state = DbState {
+        client: Arc::new(client),
+    };
+
+    println!("{}", secret);
 
     let app = Router::new()
         .nest_service("/", ServeDir::new("assets")) // http://127.0.0.1:8000/
@@ -41,6 +77,11 @@ async fn main() -> shuttle_axum::ShuttleAxum {
         .route("/public", get(public))
         .route("/private", get(private))
         .route("/login", post(login))
+        .route("/api/todo", get(crate::action::todo::select)) // http://127.0.0.1:8000/api/todo
+        .route("/api/todo", post(crate::action::todo::insert_one))
+        .route("/api/todo", put(crate::action::todo::update_one))
+        .route("/api/todo/:id", delete(crate::action::todo::delete_one))
+        .with_state(state)
         .layer(cors);
 
     Ok(app.into())
@@ -66,6 +107,7 @@ async fn login(Json(payload): Json<AuthPayload>) -> Result<Json<AuthBody>, AuthE
         return Err(AuthError::MissingCredentials);
     }
     // Here you can check the user credentials from a database
+    // use email or password
     if payload.client_id != "foo" || payload.client_secret != "bar" {
         return Err(AuthError::WrongCredentials);
     }
