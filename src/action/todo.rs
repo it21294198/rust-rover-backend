@@ -13,9 +13,9 @@ pub struct Todo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")] // This will automatically convert to camelCase during (de)serialization
 pub struct Post {
-    pub userId: i32,
+    pub user_id: i32,
     pub id: i32,
     pub title: String,
     pub body: String,
