@@ -87,9 +87,13 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
         .get("REDIS_CONNECTION")
         .context("Redis connection string was not found")?;
 
+    // Create RedisState asynchronously
     let redis_state = RedisState::new(&redis_connection)
         .await
         .expect("Failed to create Redis connection");
+
+    // Wrap in Arc for shared ownership
+    let redis_state = Arc::new(redis_state);
 
     let (pg_client, connection) = tokio_postgres::connect(&db_connection, NoTls)
         .await
@@ -100,18 +104,18 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
         }
     });
 
-    redis_state
-        .set("my_key", "my_value")
-        .await
-        .expect("Failed to set value");
+    // redis_state
+    //     .set("my_key", "my_value")
+    //     .await
+    //     .expect("Failed to set value");
 
-    // Retrieve the value
-    let value = redis_state
-        .get("my_key")
-        .await
-        .expect("Failed to get value");
+    // // Retrieve the value
+    // let value = redis_state
+    //     .get("my_key")
+    //     .await
+    //     .expect("Failed to get value");
 
-    println!("Value for 'my_key': {}", value);
+    // println!("Value for 'my_key': {}", value);
 
     let db_state = DbState {
         client: Arc::new(pg_client),
@@ -128,7 +132,7 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
         .route("/api/todo", put(crate::action::todo::update_one))
         .route("/api/todo/:id", delete(crate::action::todo::delete_one))
         .with_state(db_state)
-        // .with_state(&redis_state)
+        .with_state(redis_state.clone()) // Clone Arc for redis_state
         .layer(cors);
 
     Ok(app.into())
