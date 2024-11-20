@@ -107,6 +107,10 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
             "/api/redis/:id",
             delete(crate::action::todo::delete_one_redis),
         )
+        .route(
+            "/api/external/:id",
+            get(crate::action::todo::get_data_external_url),
+        ) // http://127.0.0.1:8000/api/external/3
         .with_state(app_state)
         .layer(cors);
 

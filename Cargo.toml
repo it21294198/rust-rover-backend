@@ -21,3 +21,4 @@ postgres = "0.19.9"
 tokio-postgres = "0.7"
 uuid = { version = "1.1", features = ["serde", "v4"] }
 redis = { version = "0.23", features = ["tokio-comp"] }
+reqwest = { version = "0.11", features = ["json"] }

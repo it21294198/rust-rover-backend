@@ -12,6 +12,15 @@ pub struct Todo {
     pub status: i32,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Post {
+    pub userId: i32,
+    pub id: i32,
+    pub title: String,
+    pub body: String,
+}
+
 pub async fn select(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<Todo>>, (StatusCode, String)> {
@@ -141,4 +150,29 @@ pub async fn delete_one_redis(
         Ok(_) => Ok(StatusCode::OK),
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
     }
+}
+
+// Handler to fetch data from the API
+pub async fn get_data_external_url(
+    Path(id): Path<String>,
+) -> Result<Json<Post>, (StatusCode, String)> {
+    let url = format!("https://jsonplaceholder.typicode.com/posts/{}", id);
+
+    // Make the HTTP GET request using reqwest
+    let response = reqwest::get(&url).await.map_err(|err| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Request error: {}", err),
+        )
+    })?;
+
+    // Parse the JSON response
+    let post = response.json::<Post>().await.map_err(|err| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Deserialization error: {}", err),
+        )
+    })?;
+
+    Ok(Json(post))
 }
