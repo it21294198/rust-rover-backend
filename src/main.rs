@@ -31,6 +31,13 @@ use tower_http::services::ServeDir;
 
 extern crate redis;
 
+// main.rs
+#[derive(Clone)]
+pub struct AppState {
+    pub db: DbState,
+    pub redis: RedisState,
+}
+
 #[derive(Clone)]
 pub struct DbState {
     pub client: Arc<Client>,
@@ -41,35 +48,8 @@ pub struct RedisState {
     pub client: Arc<redis::Client>,
     pub connection: Arc<Mutex<redis::aio::Connection>>, // Async connection
 }
-pub struct AppState {
-    pub db_state: DbState,
-    pub redis_state: RedisState,
-}
-
-impl RedisState {
-    pub async fn new(connection_string: &str) -> Result<Self, redis::RedisError> {
-        let client = redis::Client::open(connection_string)?;
-        let connection = client.get_async_connection().await?; // Async connection setup
-
-        Ok(Self {
-            client: Arc::new(client),
-            connection: Arc::new(Mutex::new(connection)),
-        })
-    }
-
-    pub async fn set(&self, key: &str, value: &str) -> Result<(), redis::RedisError> {
-        let mut connection = self.connection.lock().await; // Lock the async connection
-        connection.set(key, value).await // Use AsyncCommands' set method
-    }
-
-    pub async fn get(&self, key: &str) -> Result<String, redis::RedisError> {
-        let mut connection = self.connection.lock().await; // Lock the async connection
-        connection.get(key).await // Use AsyncCommands' get method
-    }
-}
 
 static KEYS: Lazy<Keys> = Lazy::new(|| {
-    // note that in production, you will probably want to use a random SHA-256 hash or similar
     let secret = "JWT_SECRET".to_string();
     Keys::new(secret.as_bytes())
 });
@@ -92,50 +72,72 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
         .await
         .expect("Failed to create Redis connection");
 
-    // Wrap in Arc for shared ownership
-    let redis_state = Arc::new(redis_state);
-
     let (pg_client, connection) = tokio_postgres::connect(&db_connection, NoTls)
         .await
         .context("Failed to connect to PostgreSQL")?;
+
     tokio::spawn(async move {
         if let Err(e) = connection.await {
             eprintln!("Postgres connection error: {}", e);
         }
     });
 
-    // redis_state
-    //     .set("my_key", "my_value")
-    //     .await
-    //     .expect("Failed to set value");
-
-    // // Retrieve the value
-    // let value = redis_state
-    //     .get("my_key")
-    //     .await
-    //     .expect("Failed to get value");
-
-    // println!("Value for 'my_key': {}", value);
-
     let db_state = DbState {
         client: Arc::new(pg_client),
     };
 
+    let app_state = AppState {
+        db: db_state,
+        redis: redis_state,
+    };
+
     let app = Router::new()
-        .nest_service("/", ServeDir::new("assets")) // http://127.0.0.1:8000/
-        .nest_service("/auth", ServeDir::new("assets/auth")) // http://127.0.0.1:8000/auth/index.html
+        .nest_service("/", ServeDir::new("assets"))
+        .nest_service("/auth", ServeDir::new("assets/auth"))
         .route("/public", get(public))
         .route("/private", get(private))
         .route("/login", post(login))
-        .route("/api/todo", get(crate::action::todo::select)) // http://127.0.0.1:8000/api/todo
+        .route("/api/todo", get(crate::action::todo::select))
         .route("/api/todo", post(crate::action::todo::insert_one))
         .route("/api/todo", put(crate::action::todo::update_one))
         .route("/api/todo/:id", delete(crate::action::todo::delete_one))
-        .with_state(db_state)
-        .with_state(redis_state.clone()) // Clone Arc for redis_state
+        .route("/api/redis", get(crate::action::todo::get_one_redis))
+        .route("/api/redis", post(crate::action::todo::add_one_redis))
+        .route(
+            "/api/redis/:id",
+            delete(crate::action::todo::delete_one_redis),
+        )
+        .with_state(app_state)
         .layer(cors);
 
     Ok(app.into())
+}
+
+impl RedisState {
+    pub async fn new(connection_string: &str) -> Result<Self, redis::RedisError> {
+        let client = redis::Client::open(connection_string)?;
+        let connection = client.get_async_connection().await?; // Async connection setup
+
+        Ok(Self {
+            client: Arc::new(client),
+            connection: Arc::new(Mutex::new(connection)),
+        })
+    }
+
+    pub async fn set(&self, key: &str, value: &str) -> Result<(), redis::RedisError> {
+        let mut connection = self.connection.lock().await; // Lock the async connection
+        connection.set(key, value).await // Use AsyncCommands' set method
+    }
+
+    pub async fn get(&self, key: &str) -> Result<String, redis::RedisError> {
+        let mut connection = self.connection.lock().await; // Lock the async connection
+        connection.get(key).await // Use AsyncCommands' get method
+    }
+
+    pub async fn delete(&self, key: &str) -> redis::RedisResult<()> {
+        let mut connection = self.connection.lock().await; // Lock the async connection
+        connection.del(key).await // Use AsyncCommands' delete method
+    }
 }
 
 async fn public() -> &'static str {
