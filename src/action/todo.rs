@@ -3,6 +3,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
 use serde::{Deserialize, Serialize};
+use tokio::time::Duration;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -15,7 +16,7 @@ pub struct Todo {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Post {
-    pub userId: i32,
+    pub user_id: i32,
     pub id: i32,
     pub title: String,
     pub body: String,
@@ -157,6 +158,8 @@ pub async fn get_data_external_url(
     Path(id): Path<String>,
 ) -> Result<Json<Post>, (StatusCode, String)> {
     let url = format!("https://jsonplaceholder.typicode.com/posts/{}", id);
+
+    tokio::time::sleep(Duration::from_secs(1)).await; // delay for testing response time
 
     // Make the HTTP GET request using reqwest
     let response = reqwest::get(&url).await.map_err(|err| {
