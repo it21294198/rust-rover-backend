@@ -1,6 +1,10 @@
 mod action;
 
 use crate::redis::AsyncCommands;
+use axum::extract::{
+    ws::{Message, WebSocket, WebSocketUpgrade},
+    State,
+};
 use axum::http::Method;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
@@ -15,12 +19,14 @@ use axum_extra::{
     headers::{authorization::Bearer, Authorization},
     TypedHeader,
 };
+use futures::{sink::SinkExt, stream::StreamExt};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use shuttle_runtime::SecretStore;
 use shuttle_runtime::__internals::Context;
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -56,7 +62,7 @@ static KEYS: Lazy<Keys> = Lazy::new(|| {
 
 #[shuttle_runtime::main]
 async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum::ShuttleAxum {
-    let cors = CorsLayer::new()
+    let _cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST])
         .allow_origin(Any);
 
@@ -91,6 +97,9 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
         redis: redis_state,
     };
 
+    let app_ws_state = Arc::new(WebSocketServer::default());
+
+    // Main application router
     let app = Router::new()
         .nest_service("/", ServeDir::new("assets"))
         .nest_service("/auth", ServeDir::new("assets/auth"))
@@ -110,11 +119,20 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
         .route(
             "/api/external/:id",
             get(crate::action::todo::get_data_external_url),
-        ) // http://127.0.0.1:8000/api/external/3
-        .with_state(app_state)
-        .layer(cors);
+        )
+        .with_state(app_state.clone())
+        .layer(CorsLayer::new()); // Apply CORS layer
 
-    Ok(app.into())
+    // WebSocket handler router
+    let ws_router = Router::new()
+        .route("/ws", get(websocket_handler))
+        .with_state(app_ws_state);
+
+    // Combine routers
+    let combined_app = app.merge(ws_router);
+
+    // Serve the combined application
+    Ok(combined_app.into())
 }
 
 impl RedisState {
@@ -290,4 +308,69 @@ enum AuthError {
     MissingCredentials,
     TokenCreation,
     InvalidToken,
+}
+
+// Shared state for WebSocket connections
+#[derive(Default, Clone)]
+struct WebSocketServer {
+    users: Arc<Mutex<HashSet<String>>>,
+}
+
+async fn websocket_handler(
+    ws: WebSocketUpgrade,
+    State(state): State<Arc<WebSocketServer>>,
+) -> impl IntoResponse {
+    ws.on_upgrade(move |socket| handle_socket(socket, state))
+}
+
+async fn handle_socket(socket: WebSocket, state: Arc<WebSocketServer>) {
+    let (mut sender, mut receiver) = socket.split();
+
+    // Username generation
+    let username = format!("User_{}", rand::random::<u32>());
+
+    // Add user to connected users
+    {
+        let mut users = state.users.lock().await;
+        users.insert(username.clone());
+        println!("{} connected", username);
+    }
+
+    // Send welcome message
+    if let Err(e) = sender
+        .send(Message::Text(format!("Welcome, {}!", username)))
+        .await
+    {
+        eprintln!("Error sending welcome message: {}", e);
+        return;
+    }
+
+    // Message handling
+    let state_clone = Arc::clone(&state);
+    tokio::spawn(async move {
+        while let Some(Ok(message)) = receiver.next().await {
+            match message {
+                Message::Text(text) => {
+                    println!("Received from {}: {}", username, text);
+
+                    // Echo message back
+                    if let Err(e) = sender
+                        .send(Message::Text(format!("You said: {}", text)))
+                        .await
+                    {
+                        eprintln!("Error echoing message: {}", e);
+                        break;
+                    }
+                }
+                Message::Close(_) => {
+                    // Remove user on disconnect
+                    let mut users = state_clone.users.lock().await;
+                    users.remove(&username);
+                    println!("{} disconnected", username);
+                    break;
+                }
+                _ => {}
+            }
+        }
+    });
 }

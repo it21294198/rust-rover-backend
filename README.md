@@ -33,5 +33,25 @@ DB_CONNECTION = ''
 ```bash
 shuttle deploy
 ```
+13. To use web sockets
+```js
+const socket = new WebSocket("ws://127.0.0.1:8000/ws");
 
+socket.onopen = () => {
+    console.log("Connected to WebSocket server");
+    socket.send("Hello, server!"); // send data from client
+};
+
+socket.onmessage = (event) => {
+    console.log("Received:", event.data); // view data from client
+};
+
+socket.onclose = () => {
+    console.log("WebSocket connection closed");
+};
+
+socket.onerror = (error) => {
+    console.error("WebSocket error:", error);
+};
+```
 ### Finally Enjoy Rust
