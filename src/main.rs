@@ -101,7 +101,7 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
         .route("/api/todo", post(crate::action::todo::insert_one))
         .route("/api/todo", put(crate::action::todo::update_one))
         .route("/api/todo/:id", delete(crate::action::todo::delete_one))
-        .route("/api/redis", get(crate::action::todo::get_one_redis))
+        .route("/api/redis/:id", get(crate::action::todo::get_one_redis))
         .route("/api/redis", post(crate::action::todo::add_one_redis))
         .route(
             "/api/redis/:id",
