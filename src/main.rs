@@ -1,6 +1,8 @@
 mod action;
 
+use crate::redis::AsyncCommands;
 use axum::http::Method;
+use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{
     async_trait,
@@ -18,18 +20,52 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use shuttle_runtime::SecretStore;
+use shuttle_runtime::__internals::Context;
 use std::fmt::Display;
 use std::sync::Arc;
 use std::time::SystemTime;
-use axum::routing::{delete, get, post, put};
-use shuttle_runtime::__internals::Context;
+use tokio::sync::Mutex;
 use tokio_postgres::{Client, NoTls};
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 
+extern crate redis;
+
 #[derive(Clone)]
 pub struct DbState {
     pub client: Arc<Client>,
+}
+
+#[derive(Clone)]
+pub struct RedisState {
+    pub client: Arc<redis::Client>,
+    pub connection: Arc<Mutex<redis::aio::Connection>>, // Async connection
+}
+pub struct AppState {
+    pub db_state: DbState,
+    pub redis_state: RedisState,
+}
+
+impl RedisState {
+    pub async fn new(connection_string: &str) -> Result<Self, redis::RedisError> {
+        let client = redis::Client::open(connection_string)?;
+        let connection = client.get_async_connection().await?; // Async connection setup
+
+        Ok(Self {
+            client: Arc::new(client),
+            connection: Arc::new(Mutex::new(connection)),
+        })
+    }
+
+    pub async fn set(&self, key: &str, value: &str) -> Result<(), redis::RedisError> {
+        let mut connection = self.connection.lock().await; // Lock the async connection
+        connection.set(key, value).await // Use AsyncCommands' set method
+    }
+
+    pub async fn get(&self, key: &str) -> Result<String, redis::RedisError> {
+        let mut connection = self.connection.lock().await; // Lock the async connection
+        connection.get(key).await // Use AsyncCommands' get method
+    }
 }
 
 static KEYS: Lazy<Keys> = Lazy::new(|| {
@@ -41,35 +77,45 @@ static KEYS: Lazy<Keys> = Lazy::new(|| {
 #[shuttle_runtime::main]
 async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum::ShuttleAxum {
     let cors = CorsLayer::new()
-        // allow `GET` and `POST` when accessing the resource
         .allow_methods([Method::GET, Method::POST])
-        // allow requests from any origin
         .allow_origin(Any);
-
-    let secret = secrets
-        .get("MY_SECRET_KEY")
-        .context("secret was not found")?;
 
     let db_connection = secrets
         .get("DB_CONNECTION")
-        .context("secret was not found")?;
+        .context("DB connection string was not found")?;
+    let redis_connection = secrets
+        .get("REDIS_CONNECTION")
+        .context("Redis connection string was not found")?;
 
-    let (client, connection) = tokio_postgres::connect(&db_connection, NoTls)
+    let redis_state = RedisState::new(&redis_connection)
         .await
-        .expect("Failed to connect to the database");
+        .expect("Failed to create Redis connection");
 
-    // Spawn the connection handler
+    let (pg_client, connection) = tokio_postgres::connect(&db_connection, NoTls)
+        .await
+        .context("Failed to connect to PostgreSQL")?;
     tokio::spawn(async move {
         if let Err(e) = connection.await {
-            eprintln!("connection error: {}", e);
+            eprintln!("Postgres connection error: {}", e);
         }
     });
 
-    let state = DbState {
-        client: Arc::new(client),
-    };
+    redis_state
+        .set("my_key", "my_value")
+        .await
+        .expect("Failed to set value");
 
-    println!("{}", secret);
+    // Retrieve the value
+    let value = redis_state
+        .get("my_key")
+        .await
+        .expect("Failed to get value");
+
+    println!("Value for 'my_key': {}", value);
+
+    let db_state = DbState {
+        client: Arc::new(pg_client),
+    };
 
     let app = Router::new()
         .nest_service("/", ServeDir::new("assets")) // http://127.0.0.1:8000/
@@ -81,7 +127,8 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
         .route("/api/todo", post(crate::action::todo::insert_one))
         .route("/api/todo", put(crate::action::todo::update_one))
         .route("/api/todo/:id", delete(crate::action::todo::delete_one))
-        .with_state(state)
+        .with_state(db_state)
+        // .with_state(&redis_state)
         .layer(cors);
 
     Ok(app.into())
