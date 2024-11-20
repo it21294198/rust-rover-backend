@@ -112,11 +112,10 @@ pub async fn delete_one(
 
 pub async fn add_one_redis(
     State(state): State<AppState>,
-    Path(redis_id): Path<String>,
     Json(data): Json<Todo>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     // Use redis_state
-    match state.redis.set(&redis_id, &data.todo).await {
+    match state.redis.set(&data.id, &data.todo).await {
         Ok(_) => Ok(StatusCode::OK),
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
     }
