@@ -106,6 +106,7 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
         .route("/public", get(public))
         .route("/private", get(private))
         .route("/login", post(login))
+        .route("/api/add/json", post(crate::action::todo::insert_one_json))
         .route("/api/todo", get(crate::action::todo::select))
         .route("/api/todo", post(crate::action::todo::insert_one))
         .route("/api/todo", put(crate::action::todo::update_one))
@@ -128,11 +129,17 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
         .route("/ws", get(websocket_handler))
         .with_state(app_ws_state);
 
+    // Rover Operation
+    let rover_router = Router::new()
+        .route("/rover", get(crate::action::rover::insert_one))
+        .with_state(app_state.clone());
+
     // Combine routers
-    let combined_app = app.merge(ws_router);
+    let combined_app1 = app.merge(ws_router);
+    let combined_app2 = combined_app1.merge(rover_router);
 
     // Serve the combined application
-    Ok(combined_app.into())
+    Ok(combined_app2.into())
 }
 
 impl RedisState {

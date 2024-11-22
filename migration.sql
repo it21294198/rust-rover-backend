@@ -69,3 +69,45 @@ VALUES
     (md5(random()::text), 'Read a book', 0),
     (md5(random()::text), 'Exercise for 30 minutes', 1);
 
+-- *for rover --------------------------------------------------
+
+drop table test;
+DROP PROCEDURE insert_one_test(text,text);
+
+-- Create table for operations
+CREATE TABLE test (
+    id TEXT PRIMARY KEY,
+    metadata JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE OR REPLACE PROCEDURE insert_one_test(
+    p_id TEXT,
+    p_metadata TEXT,
+    OUT p_result TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    validated_json JSONB;
+BEGIN
+    -- Validate and parse the input as JSON
+    BEGIN
+        validated_json := p_metadata::JSONB;
+    EXCEPTION 
+        WHEN OTHERS THEN
+            RAISE EXCEPTION 'Invalid JSON input: %', p_metadata;
+    END;
+
+    -- Insert the operation with validated JSON
+    INSERT INTO test (id, metadata)
+    VALUES (p_id, validated_json);
+
+    p_result := '1';
+END;
+$$;
+
+CALL insert_one_test(
+    'unique_id_1', 
+    '{"key": "value", "another_key": "another_value"}'
+);
