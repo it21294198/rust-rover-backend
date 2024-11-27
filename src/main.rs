@@ -131,7 +131,8 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
 
     // Rover Operation
     let rover_router = Router::new()
-        .route("/rover", get(crate::action::rover::insert_one))
+        .route("/test_rover", get(crate::action::rover::test_insert_one))
+        .route("/rover", get(crate::action::rover::insert_one_from_rover))
         .with_state(app_state.clone());
 
     // Combine routers

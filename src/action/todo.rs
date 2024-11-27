@@ -215,7 +215,7 @@ pub async fn delete_one_redis(
 pub async fn get_data_external_url(
     Path(id): Path<String>,
 ) -> Result<Json<Post>, (StatusCode, String)> {
-    let url = format!("https://jsonplaceholder.typicode.com/posts/{}", id);
+    let url: String = format!("https://jsonplaceholder.typicode.com/posts/{}", id);
 
     tokio::time::sleep(Duration::from_secs(1)).await; // delay for testing response time
 

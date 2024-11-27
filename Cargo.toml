@@ -25,3 +25,4 @@ futures = "0.3"
 rand = "0.8"
 time = { version = "0.3", features = ["serde"] }
 tokio-postgres = { version = "0.7", features = ["with-time-0_3"] }
+chrono = "0.4"
