@@ -1,11 +1,15 @@
+use crate::action::rover::ImageResponse;
 use crate::AppState;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{from_str, json, Value};
 use tokio::time::Duration;
 use uuid::Uuid;
+
+use super::rover::OperationResult;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Todo {
@@ -31,14 +35,14 @@ pub struct Operation {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct OperationResult {
+pub struct OperationResults {
     pub id: String,
 }
 
 pub async fn insert_one_json(
     State(state): State<AppState>,
     Json(operation): Json<Operation>,
-) -> Result<Json<OperationResult>, (StatusCode, String)> {
+) -> Result<Json<OperationResults>, (StatusCode, String)> {
     // Validate input
     if operation.id.is_empty() {
         return Err((
@@ -75,7 +79,7 @@ pub async fn insert_one_json(
     let result_value = result.get::<_, &str>(0);
 
     // Return the result wrapped in a JSON response
-    Ok(Json(OperationResult {
+    Ok(Json(OperationResults {
         id: result_value.to_owned(),
     }))
 }
@@ -236,4 +240,128 @@ pub async fn get_data_external_url(
     })?;
 
     Ok(Json(post))
+}
+
+// test user before insert the operation into the database
+pub async fn get_user(
+    State(state): State<AppState>,
+    Path(redis_id): Path<String>,
+) -> Result<Json<OperationResults>, (StatusCode, String)> {
+    let user_result = state
+        .db
+        .client
+        .query_one(
+            "CALL get_user_for_rover($1::TEXT, NULL::TEXT)",
+            &[&redis_id],
+        )
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database query failed: {}", e),
+            )
+        })?;
+
+    let result = OperationResults {
+        id: user_result.get("id_result"),
+    };
+
+    Ok(Json(result))
+}
+
+pub async fn add_operation(
+    State(state): State<AppState>,
+    Path(redis_id): Path<String>,
+) -> Result<Json<OperationResults>, (StatusCode, String)> {
+    let user_result = state
+        .db
+        .client
+        .query_one(
+            "CALL add_one_rover_operation($1::TEXT, NULL::TEXT)",
+            &[&redis_id],
+        )
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database query failed: {}", e),
+            )
+        })?;
+
+    let result = OperationResults {
+        id: user_result.get("id_result"),
+    };
+
+    Ok(Json(result))
+}
+
+pub async fn api_external() -> Result<Json<OperationResult>, (StatusCode, String)> {
+    let url: String =
+        format!("https://test-railway-fastapi-backend-production.up.railway.app/data");
+
+    // Create an HTTP client
+    let client = Client::new();
+
+    // Define the payload
+    let payload = json!({
+        "image": "image_data_json",
+        "randomId": "test",
+    });
+
+    // Make the POST request
+    let response = client
+        .post(&url)
+        .json(&payload) // Attach the payload
+        .send()
+        .await
+        .map_err(|err| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Request error: {}", err),
+            )
+        })?;
+
+    // Prepare response payload
+    let mut image_result_payload = OperationResult {
+        rover_state: 0,
+        random_id: "".to_string(),
+        image_result: Vec::new(),
+    };
+
+    // Check the response status
+    if response.status().is_success() {
+        let response_body = response.text().await.map_err(|err| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Response read error: {}", err),
+            )
+        })?;
+
+        // Parse JSON response into `ImageResponse`
+        let image_data_json: ImageResponse = from_str(&response_body).map_err(|err| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("JSON parse error: {}", err),
+            )
+        })?;
+
+        // Assign parsed data to `image_result_payload`
+        image_result_payload.rover_state = image_data_json.rover_state;
+        image_result_payload.image_result = image_data_json.image_result;
+        println!("Response: {}", response_body);
+    } else {
+        let status = response.status();
+        let error_body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Unable to retrieve error body".to_string());
+        eprintln!("Failed with status: {}, Body: {}", status, error_body);
+
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!("Request failed: {}", error_body),
+        ));
+    }
+
+    Ok(Json(image_result_payload))
 }

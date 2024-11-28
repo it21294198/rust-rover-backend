@@ -107,6 +107,9 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
         .route("/private", get(private))
         .route("/login", post(login))
         .route("/api/add/json", post(crate::action::todo::insert_one_json))
+        .route("/api/user", post(crate::action::todo::get_user))
+        .route("/api/operation", post(crate::action::todo::add_operation))
+        .route("/api/external", post(crate::action::todo::api_external)) // http://127.0.0.1:8000/api/external
         .route("/api/todo", get(crate::action::todo::select))
         .route("/api/todo", post(crate::action::todo::insert_one))
         .route("/api/todo", put(crate::action::todo::update_one))
@@ -132,7 +135,7 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
     // Rover Operation
     let rover_router = Router::new()
         .route("/test_rover", get(crate::action::rover::test_insert_one))
-        .route("/rover", get(crate::action::rover::insert_one_from_rover))
+        .route("/rover", post(crate::action::rover::insert_one_from_rover))
         .with_state(app_state.clone());
 
     // Combine routers

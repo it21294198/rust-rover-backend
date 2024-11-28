@@ -1,0 +1,16 @@
+GET https://test-railway-fastapi-backend-production.up.railway.app/ HTTP/1.1
+content-type: application/json
+
+###
+POST https://test-railway-fastapi-backend-production.up.railway.app/data HTTP/1.1
+content-type: application/json
+
+{
+  "image":"test",
+  "randomId":"test"
+}
+
+###
+POST http://127.0.0.1:8000/api/external HTTP/1.1
+content-type: application/json
+

@@ -77,13 +77,13 @@ pub struct ImageCoordinates {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImageResponse {
-    pub status: i8,
+    pub rover_state: i32,
     pub image_result: Vec<ImageCoordinates>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OperationResult {
-    pub rover_state: i8,
+    pub rover_state: i32,
     pub random_id: String,
     pub image_result: Vec<ImageCoordinates>,
 }
@@ -211,20 +211,21 @@ pub async fn insert_one_from_rover(
         )
     })?;
 
-    // Make the HTTP GET request using reqwest
-    let url: String = format!(
-        "https://jsonplaceholder.typicode.com/posts/{}",
-        &operation.rover_id
-    );
+    // Make the HTTP POST request using reqwest
+    // let url: String = format!(
+    //     "https://jsonplaceholder.typicode.com/posts/{}",
+    //     &operation.rover_id
+    // );
+    let url: String =
+        format!("https://test-railway-fastapi-backend-production.up.railway.app/data");
 
     // Create an HTTP client
     let client = Client::new();
 
     // Define the payload
     let payload = json!({
-        "time": Utc::now().timestamp().to_string(),
         "image": image_data_json,
-        "userId": &operation.rover_id.to_string()
+        "randomId": &operation.random_id.to_string()
     });
 
     // Make the POST request
