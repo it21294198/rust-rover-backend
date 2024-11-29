@@ -93,9 +93,9 @@ pub struct OperationResult {
 pub struct RoverData {
     pub rover_id: i32,
     pub random_id: i32,
-    pub battery_status: f32,
-    pub temp: f32,
-    pub humidity: f32,
+    pub battery_status: f64,
+    pub temp: f64,
+    pub humidity: f64,
     pub image_data: Value,
 }
 
@@ -129,7 +129,9 @@ pub async fn insert_one_from_rover(
     State(state): State<AppState>,
     Json(operation): Json<RoverData>,
 ) -> Result<Json<OperationResult>, (StatusCode, String)> {
+    println!("{:?}", operation);
     // operation initial state from rover to server
+    println!("Operation : 1");
     let mut opt_state = OperationState {
         one: true,
         two: false,
@@ -140,6 +142,7 @@ pub async fn insert_one_from_rover(
         time: Utc::now().timestamp().to_string(),
         error: "".to_string(),
     };
+    println!("Operation : 2");
     // store initial rover request on redis
     let _ = match state
         .redis
@@ -153,14 +156,12 @@ pub async fn insert_one_from_rover(
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
     };
 
+    println!("Operation : 3");
     // Insert the operation into the database
-    let user_result = state
+    let rover_status_result = state
         .db
         .client
-        .query_one(
-            "CALL get_user_for_rover($1::TEXT, $2::TEXT, NULL::TEXT)",
-            &[&operation.rover_id, &operation.random_id],
-        )
+        .query_one("CALL get_rover($1,null)", &[&operation.rover_id])
         .await
         .map_err(|e| {
             (
@@ -169,10 +170,11 @@ pub async fn insert_one_from_rover(
             )
         })?;
 
-    if let Some(result_value) = user_result.get(0) {
+    println!("Operation : 4");
+    if let Some(result_value) = rover_status_result.get("rover_status") {
         match result_value {
             "1" => {
-                // Do nothing
+                println!("status is 1");
             }
             _ => opt_state.error = "Error on storing DB".to_string(),
         }
@@ -180,14 +182,16 @@ pub async fn insert_one_from_rover(
         opt_state.error = "Failed to retrieve result value".to_string();
     }
 
+    println!("Operation : 5");
     // Validate input
-    if operation.rover_id.is_positive() {
+    if !Some(&operation.rover_id).is_some() {
         return Err((
             StatusCode::BAD_REQUEST,
             "Operation ID cannot be empty".to_string(),
         ));
     }
 
+    println!("Operation : 6");
     // store from server to image modal on redis
     opt_state.two = true;
     opt_state.time = Utc::now().timestamp().to_string();
@@ -203,6 +207,7 @@ pub async fn insert_one_from_rover(
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
     };
 
+    println!("Operation : 7");
     // Convert metadata to a JSON string
     let image_data_json = serde_json::to_string(&operation.image_data).map_err(|e| {
         (
@@ -216,6 +221,7 @@ pub async fn insert_one_from_rover(
     //     "https://jsonplaceholder.typicode.com/posts/{}",
     //     &operation.rover_id
     // );
+    println!("Operation : 8");
     let url: String =
         format!("https://test-railway-fastapi-backend-production.up.railway.app/data");
 
@@ -228,6 +234,7 @@ pub async fn insert_one_from_rover(
         "randomId": &operation.random_id.to_string()
     });
 
+    println!("Operation : 9");
     // Make the POST request
     let response = client
         .post(&url)
@@ -241,6 +248,7 @@ pub async fn insert_one_from_rover(
             )
         })?;
 
+    println!("Operation : 10");
     // build response body for image data
     let mut image_result_payload = OperationResult {
         rover_state: 1,
@@ -248,6 +256,7 @@ pub async fn insert_one_from_rover(
         image_result: Vec::new(),
     };
 
+    println!("Operation : 11");
     // Check the status or process the response
     if response.status().is_success() {
         let response_body = response.text().await.map_err(|err| {
@@ -257,6 +266,7 @@ pub async fn insert_one_from_rover(
             )
         })?;
 
+        println!("Operation : 12");
         // Parse JSON response into `ImageResponse`
         let image_data_json: ImageResponse = from_str(&response_body).map_err(|err| {
             (
@@ -278,6 +288,7 @@ pub async fn insert_one_from_rover(
         eprintln!("Failed with status: {}", status);
     }
 
+    println!("Operation : 13");
     // store from server to DB on redis
     opt_state.three = true;
     opt_state.time = Utc::now().timestamp().to_string();
@@ -293,6 +304,7 @@ pub async fn insert_one_from_rover(
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
     };
 
+    println!("Operation : 14");
     // store from image modal to server on redis
     opt_state.four = true;
     opt_state.time = Utc::now().timestamp().to_string();
@@ -308,18 +320,30 @@ pub async fn insert_one_from_rover(
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
     };
 
+    println!("Operation : 15");
+    // Convert image_coordinates to a string
+    let image_data_json_to_string: String =
+        serde_json::to_string(&image_result_payload.image_result).map_err(|e| {
+            (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                format!("Failed to serialize metadata: {}", e),
+            )
+        })?;
+
+    println!("Operation : 16");
     // Insert the operation into the database
     let result = state
         .db
         .client
         .query_one(
-            "CALL insert_one_operation($1::TEXT, $2::TEXT, NULL::TEXT)",
+            "CALL insert_one_operation($1,$2,$3::FLOAT,$4::FLOAT,$5::FLOAT,$6,null)",
             &[
                 &operation.rover_id,
                 &operation.random_id,
                 &operation.battery_status,
                 &operation.temp,
                 &operation.humidity,
+                &image_data_json_to_string,
             ],
         )
         .await
@@ -330,6 +354,7 @@ pub async fn insert_one_from_rover(
             )
         })?;
 
+    println!("Operation : 17");
     // store from  to server on redis
     opt_state.five = true;
     opt_state.time = Utc::now().timestamp().to_string();
@@ -345,7 +370,8 @@ pub async fn insert_one_from_rover(
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
     };
 
-    if let Some(result_value) = result.get(0) {
+    println!("Operation : 18");
+    if let Some(result_value) = result.get("result") {
         match result_value {
             "1" => {
                 // Do nothing
@@ -356,6 +382,7 @@ pub async fn insert_one_from_rover(
         opt_state.error = "Failed to retrieve result value".to_string();
     }
 
+    println!("Operation : 19");
     // store from image modal to server on redis
     opt_state.six = true;
     opt_state.time = Utc::now().timestamp().to_string();
@@ -371,6 +398,7 @@ pub async fn insert_one_from_rover(
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
     };
 
+    println!("Operation : 20");
     // Return the result wrapped in a JSON response
     Ok(Json(image_result_payload))
 }

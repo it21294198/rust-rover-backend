@@ -107,9 +107,10 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
         .route("/private", get(private))
         .route("/login", post(login))
         .route("/api/add/json", post(crate::action::todo::insert_one_json))
-        .route("/api/user", post(crate::action::todo::get_user))
+        .route("/api/user", get(crate::action::todo::get_user)) // http://127.0.0.1:8000/api/user/1
         .route("/api/operation", post(crate::action::todo::add_operation))
         .route("/api/external", post(crate::action::todo::api_external)) // http://127.0.0.1:8000/api/external
+        .route("/api/ping", get(crate::action::todo::test_ping)) // http://127.0.0.1:8000/api/ping
         .route("/api/todo", get(crate::action::todo::select))
         .route("/api/todo", post(crate::action::todo::insert_one))
         .route("/api/todo", put(crate::action::todo::update_one))

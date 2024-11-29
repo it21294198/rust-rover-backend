@@ -1,0 +1,10 @@
+
+# output will be just 200 OK
+POST http://127.0.0.1:8000/api/redis HTTP/1.1
+Content-Type: application/json
+
+{
+    "id": "1234",
+    "todo": "qwerty",
+    "status": 12345
+}

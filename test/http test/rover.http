@@ -14,3 +14,19 @@ content-type: application/json
 POST http://127.0.0.1:8000/api/external HTTP/1.1
 content-type: application/json
 
+###
+GET http://127.0.0.1:8000/api/user/1 HTTP/1.1
+content-type: application/json
+
+###
+POST http://127.0.0.1:8000/rover HTTP/1.1
+content-type: application/json
+
+{
+  "roverId":1 ,
+  "randomId":1234 ,
+  "batteryStatus":12.3 ,
+  "temp": 12.3,
+  "humidity": 12.3,
+  "imageData": "data"
+}

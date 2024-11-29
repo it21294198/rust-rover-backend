@@ -244,16 +244,14 @@ pub async fn get_data_external_url(
 
 // test user before insert the operation into the database
 pub async fn get_user(
-    State(state): State<AppState>,
-    Path(redis_id): Path<String>,
-) -> Result<Json<OperationResults>, (StatusCode, String)> {
-    let user_result = state
+    State(state): State<AppState>, // Assuming `AppState` is wrapped in `Arc` for thread safety
+    Path(qid): Path<String>,
+) -> Result<Json<String>, (StatusCode, String)> {
+    // Query the database to get rover status
+    let rover_status_result = state
         .db
         .client
-        .query_one(
-            "CALL get_user_for_rover($1::TEXT, NULL::TEXT)",
-            &[&redis_id],
-        )
+        .query_one("CALL get_rover($1, NULL)", &[&qid.parse::<i32>().unwrap()])
         .await
         .map_err(|e| {
             (
@@ -262,11 +260,33 @@ pub async fn get_user(
             )
         })?;
 
-    let result = OperationResults {
-        id: user_result.get("id_result"),
-    };
+    // Extract the rover_status value with explicit type annotation
+    let rover_status: Option<&str> = Some(rover_status_result.get::<_, &str>("rover_status"));
 
-    Ok(Json(result))
+    match rover_status {
+        Some("1") => {
+            println!("Status is 1");
+        }
+        Some("2") => {
+            println!("Status is 2");
+        }
+        Some(other) => {
+            eprintln!("Unexpected status: {}", other);
+        }
+        None => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "rover_status not found in the query result".to_string(),
+            ));
+        }
+    }
+
+    // Convert `rover_status` to a `String` and wrap in `Json`
+    Ok(Json(
+        rover_status
+            .unwrap_or("Unknown") // Provide a fallback value if needed
+            .to_string(),
+    ))
 }
 
 pub async fn add_operation(
@@ -364,4 +384,23 @@ pub async fn api_external() -> Result<Json<OperationResult>, (StatusCode, String
     }
 
     Ok(Json(image_result_payload))
+}
+
+pub async fn test_ping(
+    State(state): State<AppState>,
+) -> Result<Json<String>, (StatusCode, String)> {
+    let ping = "ping".to_string();
+
+    // Call the stored procedure and fetch the output
+    let result = state
+        .db
+        .client
+        .query_one("CALL get_ping($1, null)", &[&ping])
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // Extract the output from the query result
+    let pong: String = result.get(0); // Assuming 'pong' is the first (and only) returned field
+
+    Ok(Json(pong))
 }
