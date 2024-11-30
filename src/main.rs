@@ -150,6 +150,10 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
             "/rover/status/:id",
             post(crate::action::rover::get_rover_status_one),
         )
+        .route(
+            "/rover/operations/:id",
+            post(crate::action::rover::get_rover_operation_data),
+        )
         .with_state(app_state.clone());
 
     // Combine routers

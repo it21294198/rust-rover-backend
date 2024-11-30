@@ -31,6 +31,55 @@ pub async fn get_rover_status_one(
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OperationData {
+    pub id: i32,
+    pub rover_id: i32,
+    pub random_id: i32,
+    pub battery_status: f64,
+    pub temp: f64,
+    pub humidity: f64,
+    pub result_image: String,
+    pub image_data: String,
+    pub created_at: String,
+}
+
+pub async fn get_rover_operation_data(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<Vec<OperationData>>, (StatusCode, String)> {
+    // 1. Execute the stored procedure to fetch data directly (no need for a temp table).
+    let rows = state
+        .db
+        .client
+        .query(
+            "SELECT * FROM get_rover_operation_data($1)", // Call your function directly
+            &[&id],
+        )
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // 2. Map the result rows to `OperationData` structs.
+    let operation_data: Vec<OperationData> = rows
+        .iter()
+        .map(|row| OperationData {
+            id: row.get("id"),
+            rover_id: row.get("rover_id"),
+            random_id: row.get("random_id"),
+            battery_status: row.get("battery_status"),
+            temp: row.get("temp"),
+            humidity: row.get("humidity"),
+            result_image: row.get("result_image"),
+            image_data: row.get("image_data"),
+            created_at: row.get("created_at"),
+        })
+        .collect();
+
+    // 3. Return the data as a JSON response.
+    Ok(Json(operation_data))
+}
+
 pub async fn test_insert_one(
     State(state): State<AppState>,
     Json(operation): Json<Operation>,
@@ -337,7 +386,7 @@ pub async fn insert_one_from_rover(
         // Assign parsed data to `image_result_payload`
         image_result_payload.image_result = image_data_json.image_result;
         image_result_payload.base64_image = image_data_json.image;
-        println!("Response: {}", response_body);
+        // println!("Response: {}", response_body);
     } else {
         let status = response.status();
         let error_body = response
