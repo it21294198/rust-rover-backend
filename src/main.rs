@@ -107,9 +107,9 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
         .route("/private", get(private))
         .route("/login", post(login))
         .route("/api/add/json", post(crate::action::todo::insert_one_json))
-        .route("/api/user", get(crate::action::todo::get_user)) // http://127.0.0.1:8000/api/user/1
         .route("/api/operation", post(crate::action::todo::add_operation))
         .route("/api/external", post(crate::action::todo::api_external)) // http://127.0.0.1:8000/api/external
+        .route("/api/user/:id", get(crate::action::todo::get_user)) // http://127.0.0.1:8000/api/user/:id
         .route("/api/ping", get(crate::action::todo::test_ping)) // http://127.0.0.1:8000/api/ping
         .route("/api/todo", get(crate::action::todo::select))
         .route("/api/todo", post(crate::action::todo::insert_one))
@@ -125,6 +125,10 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
             "/api/external/:id",
             get(crate::action::todo::get_data_external_url),
         )
+        .route(
+            "/api/external/",
+            get(crate::action::todo::post_data_external_url),
+        )
         .with_state(app_state.clone())
         .layer(CorsLayer::new()); // Apply CORS layer
 
@@ -137,6 +141,10 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
     let rover_router = Router::new()
         .route("/test_rover", get(crate::action::rover::test_insert_one))
         .route("/rover", post(crate::action::rover::insert_one_from_rover))
+        .route(
+            "/rover/status/:id",
+            post(crate::action::rover::get_rover_status_one),
+        )
         .with_state(app_state.clone());
 
     // Combine routers

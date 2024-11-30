@@ -7,7 +7,6 @@ content-type: application/json
 
 {
   "image":"test",
-  "randomId":"test"
 }
 
 ###
@@ -23,10 +22,27 @@ POST http://127.0.0.1:8000/rover HTTP/1.1
 content-type: application/json
 
 {
-  "roverId":1 ,
+  "roverId":2 ,
   "randomId":1234 ,
   "batteryStatus":12.3 ,
   "temp": 12.3,
   "humidity": 12.3,
   "imageData": "data"
 }
+
+###
+POST http://127.0.0.1:8000/rover HTTP/1.1
+content-type: application/json
+
+{
+  "roverId":1 ,
+  "randomId":1234 ,
+  "batteryStatus":12.3 ,
+  "temp": 12.3,
+  "humidity": 12.3,
+  "imageData": {
+    "mime": "image/png",
+    "data": "test"
+  }
+}
+

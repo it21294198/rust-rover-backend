@@ -242,16 +242,58 @@ pub async fn get_data_external_url(
     Ok(Json(post))
 }
 
+pub async fn post_data_external_url(
+    Json(post): Json<Post>,
+) -> Result<Json<Post>, (StatusCode, String)> {
+    let url = "https://jsonplaceholder.typicode.com/posts/";
+
+    let client = Client::new(); // Consider reusing the client for better performance
+
+    println!("Operation : 9");
+
+    // Make the POST request
+    let response = client
+        .post(url)
+        .json(&post) // Attach the payload
+        .send()
+        .await
+        .map_err(|err| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Request error: {}", err),
+            )
+        })?;
+
+    // Check for non-200 status codes
+    if !response.status().is_success() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!("Request failed with status: {}", response.status()),
+        ));
+    }
+
+    // Parse the JSON response
+    let post = response.json::<Post>().await.map_err(|err| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Deserialization error: {}", err),
+        )
+    })?;
+
+    Ok(Json(post))
+}
+
 // test user before insert the operation into the database
 pub async fn get_user(
     State(state): State<AppState>, // Assuming `AppState` is wrapped in `Arc` for thread safety
-    Path(qid): Path<String>,
+    Path(id): Path<i32>,
 ) -> Result<Json<String>, (StatusCode, String)> {
     // Query the database to get rover status
+    println!("{:?}", id);
     let rover_status_result = state
         .db
         .client
-        .query_one("CALL get_rover($1, NULL)", &[&qid.parse::<i32>().unwrap()])
+        .query_one("CALL get_rover($1, NULL)", &[&id])
         .await
         .map_err(|e| {
             (
@@ -276,7 +318,11 @@ pub async fn get_user(
         None => {
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "rover_status not found in the query result".to_string(),
+                Json(json!({
+                    "error": "rover_status not found",
+                    "details": "The database query did not return a rover_status field."
+                }))
+                .to_string(),
             ));
         }
     }
@@ -345,6 +391,7 @@ pub async fn api_external() -> Result<Json<OperationResult>, (StatusCode, String
     let mut image_result_payload = OperationResult {
         rover_state: 0,
         random_id: "".to_string(),
+        base64_image: "".to_string(),
         image_result: Vec::new(),
     };
 
@@ -366,7 +413,7 @@ pub async fn api_external() -> Result<Json<OperationResult>, (StatusCode, String
         })?;
 
         // Assign parsed data to `image_result_payload`
-        image_result_payload.rover_state = image_data_json.rover_state;
+        image_result_payload.rover_state = image_data_json.status;
         image_result_payload.image_result = image_data_json.image_result;
         println!("Response: {}", response_body);
     } else {

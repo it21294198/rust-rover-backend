@@ -7,11 +7,12 @@ CREATE TABLE operations (
     battery_status FLOAT NOT NULL,
     temp FLOAT NOT NULL,
     humidity FLOAT NOT NULL,
+    result_image TEXT,
     image_data TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-DROP PROCEDURE public.insert_one_operation(in int4, in int4, in float8, in float8, in float8, in text, out text);
+DROP PROCEDURE public.insert_one_operation(in int4, in int4, in float8, in float8, in float8, in text , in text , out text);
 
 CREATE OR REPLACE PROCEDURE insert_one_operation(
     rover_id INTEGER,
@@ -19,6 +20,7 @@ CREATE OR REPLACE PROCEDURE insert_one_operation(
     battery_status FLOAT,
     temp FLOAT,
     humidity FLOAT,
+    result_image TEXT,
     image_data TEXT,
     OUT result TEXT
 )
@@ -26,10 +28,10 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     INSERT INTO operations (
-        rover_id, random_id, battery_status, temp, humidity, image_data
+        rover_id, random_id, battery_status, temp, humidity, result_image,image_data
     )
     VALUES (
-        rover_id, random_id, battery_status, temp, humidity, image_data
+        rover_id, random_id, battery_status, temp, humidity, result_image,image_data
     );
 
     -- Set the OUT parameter to '1' on success
@@ -46,7 +48,7 @@ DECLARE
     result TEXT; -- Declare a variable to capture the OUT parameter
 BEGIN
     -- Call the procedure
-    CALL insert_one_operation(1, 102, 85.5, 36.7, 60.2, '{"image": "data"}',result);
+    CALL insert_one_operation(1, 102, 85.5, 36.7, 60.2, '#qwerty','{"image": "data"}',result);
 
     -- Display the result
     RAISE NOTICE 'Generated Result ID: %', result;
@@ -60,7 +62,7 @@ DECLARE
     result TEXT; -- Declare a variable to capture the OUT parameter
 BEGIN
     -- Call the procedure
-    CALL insert_one_operation(2, 102, 85.5, 36.7, 60.2, '{"image": "data","test":1}',result);
+    CALL insert_one_operation(2, 102, 85.5, 36.7, 60.2, '#qwerty','{"image": "data","test":1}',result);
 
     -- Display the result
     RAISE NOTICE 'Generated Result ID: %', result;
