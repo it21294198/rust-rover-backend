@@ -275,7 +275,8 @@ pub async fn insert_one_from_rover(
 
     println!("Operation : 7");
     // Convert metadata to a JSON string
-    let url: String = format!("http://127.0.0.1:8080/data");
+    // let url: String = format!("http://127.0.0.1:8080/data");
+    let url: String = state.url;
 
     // Define the payload
     println!("Operation : 8");
@@ -287,6 +288,7 @@ pub async fn insert_one_from_rover(
     // Create an HTTP client
     let client = Client::new();
 
+    println!("Operation : 10");
     // Make the POST request
     let response = client
         .post(url)
@@ -301,7 +303,7 @@ pub async fn insert_one_from_rover(
             )
         })?;
 
-    println!("Operation : 10");
+    println!("Operation : 11");
     // build response body for image data
     let mut image_result_payload = OperationResult {
         rover_state: 1,
@@ -310,10 +312,10 @@ pub async fn insert_one_from_rover(
         image_result: Vec::new(),
     };
 
-    println!("Operation : 11");
+    println!("Operation : 12");
     // Check the status or process the response
     if response.status().is_success() {
-        println!("Operation : 11.1");
+        println!("Operation : 12.1");
         let response_body = response.text().await.map_err(|err| {
             opt_state.error = err.to_string();
             (
@@ -322,7 +324,7 @@ pub async fn insert_one_from_rover(
             )
         })?;
 
-        println!("Operation : 11.2");
+        println!("Operation : 12.2");
         // Parse JSON response into `ImageResponse`
         let image_data_json: ImageResponse = from_str(&response_body).map_err(|err| {
             opt_state.error = err.to_string();

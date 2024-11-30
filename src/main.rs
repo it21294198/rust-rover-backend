@@ -42,6 +42,7 @@ extern crate redis;
 pub struct AppState {
     pub db: DbState,
     pub redis: RedisState,
+    pub url: String,
 }
 
 #[derive(Clone)]
@@ -72,6 +73,9 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
     let redis_connection = secrets
         .get("REDIS_CONNECTION")
         .context("Redis connection string was not found")?;
+    let api_url = secrets
+        .get("API_URL")
+        .context("API_URL string was not found")?;
 
     // Create RedisState asynchronously
     let redis_state = RedisState::new(&redis_connection)
@@ -95,6 +99,7 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
     let app_state = AppState {
         db: db_state,
         redis: redis_state,
+        url: api_url,
     };
 
     let app_ws_state = Arc::new(WebSocketServer::default());
