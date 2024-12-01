@@ -49,3 +49,40 @@ content-type: application/json
   }
 }
 
+###
+POST https://axum-jwt-static-page-template-4gs7.shuttle.app/rover/operations/2 HTTP/1.1
+
+###
+POST https://axum-jwt-static-page-template-4gs7.shuttle.app/rover/status/1 HTTP/1.1
+
+###
+POST https://axum-jwt-static-page-template-4gs7.shuttle.app/rover HTTP/1.1
+content-type: application/json
+
+{
+  "roverId":1 ,
+  "randomId":1234 ,
+  "batteryStatus":12.3 ,
+  "temp": 12.3,
+  "humidity": 12.3,
+  "imageData": {
+    "mime": "image/png",
+    "data": "test"
+  }
+}
+
+###
+POST http://127.0.0.1:8000/test/rover HTTP/1.1
+content-type: application/json
+
+{
+  "roverId":1 ,
+  "randomId":1234 ,
+  "batteryStatus":12.3 ,
+  "temp": 12.3,
+  "humidity": 12.3,
+  "imageData": {
+    "mime": "image/png",
+    "data": "test"
+  }
+}

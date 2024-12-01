@@ -9,7 +9,7 @@ use serde_json::{from_str, json, Value};
 use tokio::time::Duration;
 use uuid::Uuid;
 
-use super::rover::OperationResult;
+use super::rover::{ImageCoordinates, OperationResult, RoverData};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Todo {
@@ -450,4 +450,40 @@ pub async fn test_ping(
     let pong: String = result.get(0); // Assuming 'pong' is the first (and only) returned field
 
     Ok(Json(pong))
+}
+
+pub async fn test_insert_one_from_rover(
+    Json(operation): Json<RoverData>,
+) -> Result<Json<OperationResult>, (StatusCode, String)> {
+    println!("{:?}", operation);
+    let mut image_result_payload = OperationResult {
+        rover_state: 1,
+        random_id: (&operation.random_id).to_string(),
+        base64_image: "".to_string(),
+        image_result: Vec::new(),
+    };
+    image_result_payload.image_result = vec![
+        ImageCoordinates {
+            x: 100.0,
+            y: 500.0,
+            confidence: 0.5,
+        },
+        ImageCoordinates {
+            x: 200.0,
+            y: 400.0,
+            confidence: 0.5,
+        },
+        ImageCoordinates {
+            x: 300.0,
+            y: 300.0,
+            confidence: 0.5,
+        },
+        ImageCoordinates {
+            x: 400.0,
+            y: 200.0,
+            confidence: 0.5,
+        },
+    ];
+    println!("{:?}", image_result_payload);
+    Ok(Json(image_result_payload))
 }

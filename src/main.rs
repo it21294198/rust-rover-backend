@@ -147,6 +147,10 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
         .route("/test_rover", get(crate::action::rover::test_insert_one))
         .route("/rover", post(crate::action::rover::insert_one_from_rover))
         .route(
+            "/test/rover",
+            post(crate::action::todo::test_insert_one_from_rover), // same as `insert_one_from_rover` for testing
+        )
+        .route(
             "/rover/status/:id",
             post(crate::action::rover::get_rover_status_one),
         )
