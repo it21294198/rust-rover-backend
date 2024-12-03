@@ -63,7 +63,7 @@ static KEYS: Lazy<Keys> = Lazy::new(|| {
 
 #[shuttle_runtime::main]
 async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum::ShuttleAxum {
-    let _cors = CorsLayer::new()
+    let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST])
         .allow_origin(Any);
 
@@ -135,12 +135,13 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
             get(crate::action::todo::post_data_external_url),
         )
         .with_state(app_state.clone())
-        .layer(CorsLayer::new()); // Apply CORS layer
+        .layer(cors.clone()); // Apply CORS layer
 
     // WebSocket handler router
     let ws_router = Router::new()
         .route("/ws", get(websocket_handler))
-        .with_state(app_ws_state);
+        .with_state(app_ws_state)
+        .layer(cors.clone());
 
     // Rover Operation
     let rover_router = Router::new()
@@ -158,7 +159,8 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
             "/rover/operations/:id",
             post(crate::action::rover::get_rover_operation_data),
         )
-        .with_state(app_state.clone());
+        .with_state(app_state.clone())
+        .layer(cors);
 
     // Combine routers
     let combined_app1 = app.merge(ws_router);

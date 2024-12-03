@@ -72,7 +72,8 @@ content-type: application/json
 }
 
 ###
-POST http://127.0.0.1:8000/test/rover HTTP/1.1
+# POST http://127.0.0.1:8000/test/rover HTTP/1.1
+POST https://axum-jwt-static-page-template-4gs7.shuttle.app/test/rover HTTP/1.1
 content-type: application/json
 
 {
