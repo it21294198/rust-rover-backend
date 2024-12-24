@@ -12,7 +12,8 @@ use serde_json::{from_str, json, Value}; // For date-time handling
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TestResult {
     pub time: String,
-    pub id: String,
+    pub info: String,
+    pub status: i32,
 }
 
 pub async fn get_rover_status_one(
@@ -122,7 +123,8 @@ pub async fn test_insert_one(
     // Define the payload
     let payload = TestResult {
         time: Utc::now().timestamp().to_string(),
-        id: result_value.to_owned(),
+        info: result_value.to_owned(),
+        status: 1,
     };
 
     // Return the result wrapped in a JSON response
@@ -201,6 +203,145 @@ pub struct OperationState {
     pub six: bool,
     pub time: String,
     pub error: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewRover {
+    pub rover_id: i32,
+    pub initial_id: i32,
+    pub rover_status: i32,
+    pub user_id: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RoverStatus {
+    pub initial_id: i32,
+    pub rover_status: i32,
+    pub user_id: i32,
+}
+
+pub async fn update_rover_from_mobile(
+    State(state): State<AppState>,
+    Json(rover_status): Json<RoverStatus>,
+) -> Result<Json<TestResult>, (StatusCode, String)> {
+    let status_result = state
+        .db
+        .client
+        .query_one(
+            "CALL update_rover_status($1, $2, $3, NULL)",
+            &[
+                &rover_status.initial_id,
+                &rover_status.rover_status,
+                &rover_status.user_id,
+            ],
+        )
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database query failed: {}", e),
+            )
+        })?;
+
+    let status: Option<&str> = Some(status_result.get::<_, &str>("status"));
+
+    let insert_result = match status {
+        Some("1") => TestResult {
+            info: "success".to_string(),
+            time: "".to_string(),
+            status: 1,
+        },
+        Some("0") => TestResult {
+            info: "fail".to_string(),
+            time: "".to_string(),
+            status: 0,
+        },
+        _ => TestResult {
+            info: "fail".to_string(),
+            time: "".to_string(),
+            status: 0,
+        },
+    };
+
+    println!("Rover updated");
+    Ok(Json(insert_result))
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RoverDetail {
+    rover_id: i32,
+    initial_id: i32,
+    rover_status: i32,
+    user_id: i32,
+    created_at: String,
+}
+
+pub async fn fetch_rover_data(
+    State(state): State<AppState>,
+    Path(user_id): Path<i32>,
+) -> Result<Json<Vec<RoverDetail>>, (StatusCode, String)> {
+    // Call the stored procedure
+    let rows = state
+        .db
+        .client
+        .query("SELECT * FROM get_rover_data($1)", &[&user_id])
+        .await
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+
+    // Map the rows into the `RoverDetail` struct
+    let rovers: Vec<RoverDetail> = rows
+        .into_iter()
+        .map(|row| RoverDetail {
+            rover_id: row.get("rover_id"),
+            initial_id: row.get("initial_id"),
+            rover_status: row.get("rover_status"),
+            user_id: row.get("user_id"),
+            created_at: row.get("created_at"),
+        })
+        .collect();
+
+    Ok(Json(rovers))
+}
+
+pub async fn insert_rover_from_mobile(
+    State(state): State<AppState>,
+    Json(rover): Json<NewRover>,
+) -> Result<Json<TestResult>, (StatusCode, String)> {
+    let rover_status_result = state
+        .db
+        .client
+        .query_one(
+            "CALL create_new_rover($1, $2, $3, NULL)",
+            &[&rover.initial_id, &rover.rover_status, &rover.user_id],
+        )
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database query failed: {}", e),
+            )
+        })?;
+
+    let status_value: bool = rover_status_result.get(0);
+
+    let insert_result = match status_value {
+        true => TestResult {
+            info: "success".to_string(),
+            time: "".to_string(),
+            status: 1,
+        },
+        false => TestResult {
+            info: "fail".to_string(),
+            time: "".to_string(),
+            status: 0,
+        },
+    };
+
+    println!("Added new Rover");
+    Ok(Json(insert_result))
 }
 
 pub async fn insert_one_from_rover(
