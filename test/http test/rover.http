@@ -87,3 +87,28 @@ content-type: application/json
     "data": "test"
   }
 }
+
+###
+POST http://127.0.0.1:8000/rover/new HTTP/1.1
+content-type: application/json
+
+{
+    "roverId":12345,
+    "initialId":12345,
+    "roverStatus":12345,
+    "userId":12345
+}
+
+###
+POST http://127.0.0.1:8000/rover/update HTTP/1.1
+content-type: application/json
+
+{
+    "initialId": 12345,
+    "roverStatus": 2,
+    "userId": 3
+}
+
+###
+POST http://127.0.0.1:8000/rover/3 HTTP/1.1
+content-type: application/json
