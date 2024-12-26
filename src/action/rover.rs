@@ -420,7 +420,6 @@ pub async fn insert_one_from_rover(
         }
         Some(other) => {
             opt_state.error = other.to_string();
-            eprintln!("Unexpected status: {}", other);
         }
         None => {
             opt_state.error = "None error".to_string();
