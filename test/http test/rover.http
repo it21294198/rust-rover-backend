@@ -106,6 +106,14 @@ content-type: application/json
 }
 
 ###
+POST http://127.0.0.1:8000/server/url HTTP/1.1
+content-type: application/json
+
+{
+  "imageServerUrl":"https://strawberry-flower-modal-production.up.railway.app/find-flower-yolo"
+}
+
+###
 # POST https://axum-jwt-static-page-template-4gs7.shuttle.app/rover HTTP/1.1
 POST http://127.0.0.1:8000/rover HTTP/1.1
 content-type: application/json

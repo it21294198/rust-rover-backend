@@ -34,6 +34,45 @@ pub async fn get_rover_status_one(
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct Urls {
+    pub image_server_url: String,
+}
+
+pub async fn set_backend_urls(
+    State(state): State<AppState>,
+    Json(urls): Json<Urls>,
+) -> Result<Json<TestResult>, (StatusCode, String)> {
+    let mut response = TestResult {
+        time: Utc::now().timestamp().to_string(),
+        info: String::new(),
+        status: 0,
+    };
+
+    if !urls.image_server_url.is_empty() {
+        match state
+            .redis
+            .set("imageserverurl", &urls.image_server_url)
+            .await
+        {
+            Ok(_) => {
+                response.status = 1; // Indicate success
+                Ok(Json(response)) // Return the response wrapped in Json
+            }
+            Err(e) => {
+                response.info = format!("Redis error: {}", e);
+                response.status = 0;
+                Ok(Json(response))
+            }
+        }
+    } else {
+        response.info = "Image server URL cannot be empty".to_string();
+        response.status = 0;
+        Ok(Json(response))
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OperationData {
     pub id: i32,
     pub rover_id: i32,
@@ -465,7 +504,11 @@ pub async fn insert_one_from_rover(
     println!("Operation : 7");
     // Convert metadata to a JSON string
     // let url: String = format!("http://127.0.0.1:8080/data");
-    let url: String = state.url;
+    // let url: String = state.url;
+    let url = match state.redis.get("imageserverurl").await {
+        Ok(value) => value,
+        Err(e) => return Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+    };
 
     // Define the payload
     println!("Operation : 8");

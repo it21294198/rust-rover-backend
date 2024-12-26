@@ -171,6 +171,7 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
             "/rover/:user_id",
             post(crate::action::rover::fetch_rover_data),
         )
+        .route("/server/url", post(crate::action::rover::set_backend_urls))
         .with_state(app_state.clone())
         .layer(cors);
 
