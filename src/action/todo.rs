@@ -470,17 +470,17 @@ pub async fn test_insert_one_from_rover(
         },
         ImageCoordinates {
             x: 200.0,
-            y: 400.0,
+            y: 1000.0,
             confidence: 0.5,
         },
         ImageCoordinates {
             x: 300.0,
-            y: 300.0,
+            y: 1500.0,
             confidence: 0.5,
         },
         ImageCoordinates {
             x: 400.0,
-            y: 200.0,
+            y: 2000.0,
             confidence: 0.5,
         },
     ];
