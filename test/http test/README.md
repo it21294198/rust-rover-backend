@@ -75,8 +75,8 @@ content-type: application/json
 }
 ```
 
-1. Get above data for a particular Rover given.(here eg:- Rover 3) -->> Akmal/Chamath/Chathupa
+8. Get above data for a particular Rover given.(here eg:- Rover 3) -->> Akmal/Chamath/Chathupa
 ```http
-POST https://axum-jwt-static-page-template-4gs7.shuttle.app/rover/3 HTTP/1.1
+POST https://axum-jwt-static-page-template-4gs7.shuttle.app/rover/2 HTTP/1.1
 content-type: application/json
 ```
