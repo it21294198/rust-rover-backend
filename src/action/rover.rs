@@ -387,7 +387,7 @@ pub async fn insert_one_from_rover(
     State(state): State<AppState>,
     Json(operation): Json<RoverData>,
 ) -> Result<Json<OperationResult>, (StatusCode, String)> {
-    println!("{:?}", operation);
+    // println!("{:?}", operation);
     // operation initial state from rover to server
     println!("Operation : 1");
     let mut opt_state = OperationState {
