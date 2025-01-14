@@ -400,6 +400,7 @@ pub async fn insert_one_from_rover(
         time: Utc::now().timestamp().to_string(),
         error: "".to_string(),
     };
+
     println!("Operation : 2");
     // store initial rover request on redis
     let _ = match state
@@ -416,6 +417,7 @@ pub async fn insert_one_from_rover(
 
     println!("Operation : 3");
     // check user status from database
+    opt_state.error = "rover stop from user".to_string();
     let rover_status_result = state
         .db
         .client
@@ -432,10 +434,38 @@ pub async fn insert_one_from_rover(
     println!("Operation : 4");
     // Extract the rover_status value with explicit type annotation
     let rover_status: Option<&str> = Some(rover_status_result.get::<_, &str>("rover_status"));
+
+    println!("Operation : 5");
+    // store from server to image modal on redis
+    opt_state.two = true;
+    opt_state.time = Utc::now().timestamp().to_string();
+    opt_state.error = format!("rover state: {}", rover_status.unwrap().to_owned());
+    let _ = match state
+        .redis
+        .set(
+            &operation.rover_id.to_string(),
+            &serde_json::to_string(&opt_state).unwrap(),
+        )
+        .await
+    {
+        Ok(_) => Ok(StatusCode::OK),
+        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+    };
+
     match rover_status {
+        Some("0") => {
+            // println!("Status is 0 : request to stop");
+            println!("Status is 0");
+            return Ok(Json(OperationResult {
+                rover_state: 0,
+                random_id: (&operation.random_id).to_string(),
+                base64_image: "".to_string(),
+                image_result: Vec::new(),
+            }));
+        }
         Some("1") => {
             // println!("Status is 1 : request can continue");
-            opt_state.error = "".to_string();
+            opt_state.error = "rover runs".to_string();
         }
         Some("2") => {
             println!("Status is 2");
@@ -473,21 +503,9 @@ pub async fn insert_one_from_rover(
         }
     }
 
-    println!("Operation : 5");
-    // Validate input
-    if operation.image_data.is_null() {
-        opt_state.error = "Image data is null".to_string();
-        return Ok(Json(OperationResult {
-            rover_state: 4,
-            random_id: (&operation.random_id).to_string(),
-            base64_image: "".to_string(),
-            image_result: Vec::new(),
-        }));
-    }
-
     println!("Operation : 6");
-    // store from server to image modal on redis
-    opt_state.two = true;
+    // store from server to DB on redis
+    opt_state.three = true;
     opt_state.time = Utc::now().timestamp().to_string();
     let _ = match state
         .redis
@@ -502,6 +520,18 @@ pub async fn insert_one_from_rover(
     };
 
     println!("Operation : 7");
+    // Validate input
+    if operation.image_data.is_null() {
+        opt_state.error = "Image data is null".to_string();
+        return Ok(Json(OperationResult {
+            rover_state: 4,
+            random_id: (&operation.random_id).to_string(),
+            base64_image: "".to_string(),
+            image_result: Vec::new(),
+        }));
+    }
+
+    println!("Operation : 8");
     // Convert metadata to a JSON string
     // let url: String = format!("http://127.0.0.1:8080/data");
     // let url: String = state.url;
@@ -511,16 +541,16 @@ pub async fn insert_one_from_rover(
     };
 
     // Define the payload
-    println!("Operation : 8");
+    println!("Operation : 9");
     let payload = ImageProcessingAPICall {
         image: operation.image_data.to_string(),
     };
 
-    println!("Operation : 9");
+    println!("Operation : 10");
     // Create an HTTP client
     let client = Client::new();
 
-    println!("Operation : 10");
+    println!("Operation : 11");
     // Make the POST request
     let response = client
         .post(url)
@@ -535,7 +565,7 @@ pub async fn insert_one_from_rover(
             )
         })?;
 
-    println!("Operation : 11");
+    println!("Operation : 12");
     // build response body for image data
     let mut image_result_payload = OperationResult {
         rover_state: 1,
@@ -544,10 +574,10 @@ pub async fn insert_one_from_rover(
         image_result: Vec::new(),
     };
 
-    println!("Operation : 12");
+    println!("Operation : 13");
     // Check the status or process the response
     if response.status().is_success() {
-        println!("Operation : 12.1");
+        println!("Operation : 13.1");
         let response_body = response.text().await.map_err(|err| {
             opt_state.error = err.to_string();
             (
@@ -556,7 +586,7 @@ pub async fn insert_one_from_rover(
             )
         })?;
 
-        println!("Operation : 12.2");
+        println!("Operation : 13.2");
         // Parse JSON response into `ImageResponse`
         let image_data_json: ImageResponse = from_str(&response_body).map_err(|err| {
             opt_state.error = err.to_string();
@@ -586,22 +616,6 @@ pub async fn insert_one_from_rover(
             image_result: Vec::new(),
         }));
     }
-
-    println!("Operation : 13");
-    // store from server to DB on redis
-    opt_state.three = true;
-    opt_state.time = Utc::now().timestamp().to_string();
-    let _ = match state
-        .redis
-        .set(
-            &operation.rover_id.to_string(),
-            &serde_json::to_string(&opt_state).unwrap(),
-        )
-        .await
-    {
-        Ok(_) => Ok(StatusCode::OK),
-        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
-    };
 
     println!("Operation : 14");
     // store from image modal to server on redis
