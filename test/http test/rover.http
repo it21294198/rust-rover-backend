@@ -121,7 +121,7 @@ content-type: application/json
 
 {
   "roverId":1 ,
-  "randomId":1234 ,
+  "randomId":0 ,
   "batteryStatus":12.3 ,
   "temp": 12.3,
   "humidity": 12.3,

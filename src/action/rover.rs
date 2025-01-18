@@ -5,6 +5,7 @@ use axum::{
     Json,
 };
 use chrono::Utc;
+use postgres::Row;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{from_str, json, Value}; // For date-time handling
@@ -636,29 +637,36 @@ pub async fn insert_one_from_rover(
 
     println!("Operation : 16");
     // Insert the operation into the database
-    let result = state
-        .db
-        .client
-        .query_one(
-            "CALL insert_one_operation($1,$2,$3::FLOAT,$4::FLOAT,$5::FLOAT,$6,$7,null)",
-            &[
-                &operation.rover_id,
-                &operation.random_id,
-                &operation.battery_status,
-                &operation.temp,
-                &operation.humidity,
-                &image_result_payload.base64_image,
-                &image_data_json_to_string,
-            ],
-        )
-        .await
-        .map_err(|e| {
-            opt_state.error = e.to_string();
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Database insertion failed: {}", e),
+    let result: Option<Row>;
+
+    if operation.random_id != 0 {
+        result = state
+            .db
+            .client
+            .query_one(
+                "CALL insert_one_operation($1, $2, $3::FLOAT, $4::FLOAT, $5::FLOAT, $6, $7, null)",
+                &[
+                    &operation.rover_id,
+                    &operation.random_id,
+                    &operation.battery_status,
+                    &operation.temp,
+                    &operation.humidity,
+                    &image_result_payload.base64_image,
+                    &image_data_json_to_string,
+                ],
             )
-        })?;
+            .await
+            .map_err(|e| {
+                opt_state.error = e.to_string();
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Database insertion failed: {}", e),
+                )
+            })
+            .ok(); // Use `ok` to convert Result to Option
+    } else {
+        result = None;
+    }
 
     println!("Operation : 17");
     // store from  to server on redis
@@ -677,15 +685,25 @@ pub async fn insert_one_from_rover(
     };
 
     println!("Operation : 18");
-    if let Some(result_value) = result.get("result") {
-        match result_value {
-            "1" => {
-                // Do nothing
+    if let Some(row) = result {
+        match row.try_get::<_, Option<String>>("result") {
+            Ok(Some(result_value)) => {
+                match result_value.as_str() {
+                    "1" => {
+                        // Do nothing
+                    }
+                    _ => opt_state.error = "Error storing to DB".to_string(),
+                }
             }
-            _ => opt_state.error = "Error on storing DB".to_string(),
+            Ok(None) => {
+                opt_state.error = "Result column is NULL".to_string();
+            }
+            Err(e) => {
+                opt_state.error = format!("Error retrieving result: {}", e);
+            }
         }
     } else {
-        opt_state.error = "Failed to retrieve result value".to_string();
+        opt_state.error = "No result returned from database operation".to_string();
     }
 
     println!("Operation : 19");
