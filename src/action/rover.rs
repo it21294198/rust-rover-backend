@@ -459,7 +459,7 @@ pub async fn insert_one_from_rover(
             return Ok(Json(OperationResult {
                 rover_state: 0,
                 random_id: (&operation.random_id).to_string(),
-                base64_image: "".to_string(),
+                base64_image: "rover pause".to_string(),
                 image_result: Vec::new(),
             }));
         }
@@ -467,28 +467,18 @@ pub async fn insert_one_from_rover(
             // println!("Status is 1 : request can continue");
             opt_state.error = "rover runs".to_string();
         }
-        Some("2") => {
-            println!("Status is 2");
-            opt_state.error = "status is 2".to_string();
+        Some(_) => {
+            let status = rover_status
+                .unwrap()
+                .parse::<i32>()
+                .expect("Failed to parse string to i32");
+            opt_state.error = format!("status is {}", status);
             return Ok(Json(OperationResult {
-                rover_state: 2,
+                rover_state: status,
                 random_id: (&operation.random_id).to_string(),
-                base64_image: "".to_string(),
+                base64_image: opt_state.error,
                 image_result: Vec::new(),
             }));
-        }
-        Some("3") => {
-            println!("Status is 3");
-            opt_state.error = "status is 3".to_string();
-            return Ok(Json(OperationResult {
-                rover_state: 3,
-                random_id: (&operation.random_id).to_string(),
-                base64_image: "".to_string(),
-                image_result: Vec::new(),
-            }));
-        }
-        Some(other) => {
-            opt_state.error = other.to_string();
         }
         None => {
             opt_state.error = "None error".to_string();

@@ -453,37 +453,74 @@ pub async fn test_ping(
 }
 
 pub async fn test_insert_one_from_rover(
+    State(state): State<AppState>,
     Json(operation): Json<RoverData>,
 ) -> Result<Json<OperationResult>, (StatusCode, String)> {
     println!("{:?}", operation);
+    let rover_status_result = state
+        .db
+        .client
+        .query_one("CALL get_rover($1, NULL)", &[&operation.rover_id])
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database query failed: {}", e),
+            )
+        })?;
+    let db_rover_status: Option<&str> = Some(rover_status_result.get::<_, &str>("rover_status"));
+    // response payload
     let mut image_result_payload = OperationResult {
-        rover_state: 1,
+        rover_state: 0,
         random_id: (&operation.random_id).to_string(),
         base64_image: "".to_string(),
         image_result: Vec::new(),
     };
-    image_result_payload.image_result = vec![
-        ImageCoordinates {
-            x: 100.0,
-            y: 500.0,
-            confidence: 0.5,
-        },
-        ImageCoordinates {
-            x: 200.0,
-            y: 1000.0,
-            confidence: 0.5,
-        },
-        ImageCoordinates {
-            x: 300.0,
-            y: 1500.0,
-            confidence: 0.5,
-        },
-        ImageCoordinates {
-            x: 400.0,
-            y: 2000.0,
-            confidence: 0.5,
-        },
-    ];
+    match db_rover_status {
+        Some("0") => {
+            image_result_payload.rover_state = 0;
+            image_result_payload.image_result = vec![];
+        }
+        Some("1") => {
+            image_result_payload.rover_state = 1;
+            image_result_payload.image_result = vec![
+                ImageCoordinates {
+                    x: 100.0,
+                    y: 500.0,
+                    confidence: 0.5,
+                },
+                ImageCoordinates {
+                    x: 200.0,
+                    y: 1000.0,
+                    confidence: 0.5,
+                },
+                ImageCoordinates {
+                    x: 300.0,
+                    y: 1500.0,
+                    confidence: 0.5,
+                },
+                ImageCoordinates {
+                    x: 400.0,
+                    y: 2000.0,
+                    confidence: 0.5,
+                },
+            ];
+        }
+        Some("4") => {
+            image_result_payload.rover_state = 4;
+            image_result_payload.image_result = vec![];
+        }
+        Some(_) => {
+            image_result_payload.rover_state = db_rover_status
+                .unwrap()
+                .parse::<i32>()
+                .expect("Failed to parse string to i32");
+            image_result_payload.image_result = vec![];
+        }
+        None => {
+            image_result_payload.rover_state = 0;
+        }
+    }
     println!("{:?}", image_result_payload);
     Ok(Json(image_result_payload))
 }

@@ -57,8 +57,8 @@ POST https://axum-jwt-static-page-template-4gs7.shuttle.app/rover/operations/2 H
 POST https://axum-jwt-static-page-template-4gs7.shuttle.app/rover/status/1 HTTP/1.1
 
 ###
-# POST http://127.0.0.1:8000/test/rover HTTP/1.1
-POST https://axum-jwt-static-page-template-4gs7.shuttle.app/test/rover HTTP/1.1
+# POST https://axum-jwt-static-page-template-4gs7.shuttle.app/test/rover HTTP/1.1
+POST http://127.0.0.1:8000/test/rover HTTP/1.1
 content-type: application/json
 
 {
@@ -90,12 +90,12 @@ content-type: application/json
 
 {
     "initialId": 12345,
-    "roverStatus": 2,
-    "userId": 3
+    "roverStatus": 1,
+    "userId": 1
 }
 
 ###
-POST http://127.0.0.1:8000/rover/3 HTTP/1.1
+POST http://127.0.0.1:8000/rover/1 HTTP/1.1
 content-type: application/json
 
 ###
@@ -115,8 +115,8 @@ content-type: application/json
 }
 
 ###
-POST https://axum-jwt-static-page-template-4gs7.shuttle.app/rover HTTP/1.1
-# POST http://127.0.0.1:8000/rover HTTP/1.1
+# POST https://axum-jwt-static-page-template-4gs7.shuttle.app/rover HTTP/1.1
+POST http://127.0.0.1:8000/rover HTTP/1.1
 content-type: application/json
 
 {

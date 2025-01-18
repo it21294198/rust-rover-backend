@@ -70,8 +70,8 @@ content-type: application/json
 
 {
     "initialId": 12345,
-    "roverStatus": 2,
-    "userId": 3
+    "roverStatus": 1,
+    "userId": 1
 }
 ```
 
