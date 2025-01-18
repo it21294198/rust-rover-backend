@@ -111,7 +111,7 @@ POST http://127.0.0.1:8000/server/url HTTP/1.1
 content-type: application/json
 
 {
-  "imageServerUrl":"https://strawberry-flower-modal-production.up.railway.app/find-flower-yolo"
+  "imageServerUrl":"http://0.0.0.0:8080/find-flower-yolo"
 }
 
 ###
