@@ -17,6 +17,25 @@ pub struct TestResult {
     pub status: i32,
 }
 
+pub async fn timer_trigger_sync_sql_to_nosql(
+    State(state): State<AppState>,
+) -> Result<Json<TestResult>, (StatusCode, String)> {
+    // get total count of un-uploaded operation count from SP
+    // loop through the count and do as following SP
+    // 1. delete all recodes which random_id is equal to 9 if exist
+    // 2. update the oldest(by sorting created_at) recode's random_id to 9
+    // 3. select and return whole recode to backend server.
+    // 4. insert the base64 image as jpeg image into azure blob storage and get it's url back
+    // 5. insert the get back image usl and other image data to mongoDB NOSQL db
+    // 6. Call this route in every 5 min by using azure timer-trigger using ASP.NET/C#
+    let payload = TestResult {
+        time: Utc::now().timestamp().to_string(),
+        info: "process".to_owned(),
+        status: 1,
+    };
+    Ok(Json(payload))
+}
+
 pub async fn get_rover_status_one(
     State(state): State<AppState>,
     Path(id): Path<String>,
