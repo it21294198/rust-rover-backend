@@ -172,6 +172,10 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
             post(crate::action::rover::fetch_rover_data),
         )
         .route("/server/url", post(crate::action::rover::set_backend_urls))
+        .route(
+            "/sync-job",
+            post(crate::action::rover::timer_trigger_sync_sql_to_nosql),
+        )
         .with_state(app_state.clone())
         .layer(cors);
 
