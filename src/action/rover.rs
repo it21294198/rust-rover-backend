@@ -17,8 +17,7 @@ pub struct TestResult {
     pub status: i32,
 }
 
-pub async fn timer_trigger_sync_sql_to_nosql(
-    State(state): State<AppState>,
+pub async fn timer_trigger_sync_sql_to_nosql(// State(state): State<AppState>,
 ) -> Result<Json<TestResult>, (StatusCode, String)> {
     // get total count of un-uploaded operation count from SP
     // loop through the count and do as following SP
@@ -384,19 +383,12 @@ pub async fn insert_rover_from_mobile(
             )
         })?;
 
-    let status_value: bool = rover_status_result.get(0);
+    let status_value: i32 = rover_status_result.get(0);
 
-    let insert_result = match status_value {
-        true => TestResult {
-            info: "success".to_string(),
-            time: "".to_string(),
-            status: 1,
-        },
-        false => TestResult {
-            info: "fail".to_string(),
-            time: "".to_string(),
-            status: 0,
-        },
+    let insert_result = TestResult {
+        info: status_value.to_string(),
+        time: "".to_string(),
+        status: 1,
     };
 
     println!("Added new Rover");
