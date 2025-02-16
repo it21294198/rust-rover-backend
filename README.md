@@ -54,4 +54,7 @@ socket.onerror = (error) => {
     console.error("WebSocket error:", error);
 };
 ```
+
+14. ESP32 will response under different status of the rover from database [Read More](https://forum.arduino.cc/t/breaking-out-of-loop/1072467/9)
+
 ### Finally Enjoy Rust

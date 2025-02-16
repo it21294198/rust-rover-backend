@@ -8,42 +8,38 @@ CREATE TABLE rovers (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-DROP PROCEDURE public.create_new_rover(in int4, in int4, in int4, out text);
+-- DROP PROCEDURE public.create_new_rover(in int4, in int4, in int4, out int4);
 
-CREATE OR REPLACE PROCEDURE create_new_rover(
-    initial_id INTEGER,
-    rover_status INTEGER,
-    user_id INTEGER,
-    OUT result_status BOOLEAN
+CREATE OR REPLACE PROCEDURE public.create_new_rover(
+    IN initial_id integer,
+    IN rover_status integer,
+    IN user_id integer,
+    OUT rover_id integer
 )
 LANGUAGE plpgsql
-AS $$
+AS $procedure$
 BEGIN
-    -- Insert the values into the rovers table
+    -- Insert the values and store the returned id into the OUT parameter
     INSERT INTO rovers (initial_id, rover_status, user_id)
-    VALUES (initial_id, rover_status, user_id);
-    
-    -- If the insert succeeds, set the result status to true
-    result_status := TRUE;
-
+    VALUES (initial_id, rover_status, user_id)
+    RETURNING rovers.rover_id INTO rover_id;
 EXCEPTION
     WHEN OTHERS THEN
-        -- Log the error and set the result status to false
+        -- Log the error and set rover_id to null to indicate failure
         RAISE NOTICE 'Insertion failed: %', SQLERRM;
-        result_status := FALSE;
+        rover_id := null;
 END;
-$$;
-
+$procedure$;
 
 DO $$
 DECLARE
-    result_id BOOLEAN; -- Declare a variable to capture the OUT parameter
+    rover_id int; -- Declare a variable to capture the OUT parameter
 BEGIN
     -- Call the procedure
-    CALL create_new_rover(1, 2, 3, result_id);
+	CALL create_new_rover(987, 987, 987, rover_id);
 
     -- Display the result
-    RAISE NOTICE 'Generated Result ID: %', result_id;
+    RAISE NOTICE 'Generated Result ID: %', rover_id;
     -- output
     -- Generated Result ID: t
 END;

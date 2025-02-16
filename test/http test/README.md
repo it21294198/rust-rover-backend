@@ -70,13 +70,13 @@ content-type: application/json
 
 {
     "initialId": 12345,
-    "roverStatus": 2,
-    "userId": 3
+    "roverStatus": 1,
+    "userId": 1
 }
 ```
 
-1. Get above data for a particular Rover given.(here eg:- Rover 3) -->> Akmal/Chamath/Chathupa
+8. Get only state of a Rover given.(here eg:- Rover 3) -->> Akmal/Chamath/Chathupa
 ```http
-POST https://axum-jwt-static-page-template-4gs7.shuttle.app/rover/3 HTTP/1.1
+GET https://axum-jwt-static-page-template-4gs7.shuttle.app/api/user/1
 content-type: application/json
 ```
