@@ -1,3 +1,5 @@
 /target
 .shuttle*
 Secrets*.toml
+Host*.toml
+Local*.toml
