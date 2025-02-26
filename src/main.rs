@@ -26,10 +26,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use shuttle_runtime::SecretStore;
 use shuttle_runtime::__internals::Context;
-use std::collections::HashSet;
 use std::fmt::Display;
 use std::sync::Arc;
 use std::time::SystemTime;
+use std::{collections::HashSet, time::Duration};
 use tokio::sync::Mutex;
 use tokio_postgres::{Client, NoTls};
 use tower_http::cors::{Any, CorsLayer};
@@ -60,6 +60,32 @@ static KEYS: Lazy<Keys> = Lazy::new(|| {
     let secret = "JWT_SECRET".to_string();
     Keys::new(secret.as_bytes())
 });
+
+// this function will run POST http://127.0.0.1:8080/rover/trigger/ in every 60 seconds
+async fn perform_cron_task(state: RedisState) {
+    let client = reqwest::Client::new();
+
+    let url = match state.get("triggerserverurl").await {
+        Ok(value) => value,
+        Err(e) => {
+            eprintln!("Error retrieving trigger server URL: {}", e);
+            return;
+        }
+    };
+
+    let response = match client.post(url).send().await {
+        Ok(resp) => resp,
+        Err(err) => {
+            eprintln!("Request error: {}", err);
+            return;
+        }
+    };
+
+    match response.text().await {
+        Ok(body) => println!("{}", body),
+        Err(err) => eprintln!("Failed to read response body: {}", err),
+    };
+}
 
 #[shuttle_runtime::main]
 async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum::ShuttleAxum {
@@ -101,6 +127,18 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
         redis: redis_state,
         url: api_url,
     };
+
+    // Clone the redis state before moving it into the async block
+    let redis_state_clone = app_state.redis.clone();
+
+    // Spawn the cron job in the background
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(60)); // Run every 60 seconds
+        loop {
+            interval.tick().await;
+            perform_cron_task(redis_state_clone.clone()).await;
+        }
+    });
 
     let app_ws_state = Arc::new(WebSocketServer::default());
 
