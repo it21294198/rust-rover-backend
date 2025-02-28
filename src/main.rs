@@ -211,6 +211,10 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
         )
         .route("/server/url", post(crate::action::rover::set_backend_urls))
         .route(
+            "/test/coordinates",
+            post(crate::action::rover::calculate_handler),
+        )
+        .route(
             "/sync-job",
             post(crate::action::rover::timer_trigger_sync_sql_to_nosql),
         )

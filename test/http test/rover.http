@@ -22,6 +22,16 @@ content-type: application/json
 POST http://127.0.0.1:8000/rover/operations/2 HTTP/1.1
 
 ###
+POST http://127.0.0.1:8000/test/coordinates HTTP/1.1
+content-type: application/json
+
+{
+  "x_values": [300, 600, 100],
+  "y_values": [50, 40, 100],
+  "r": 100
+}
+
+###
 POST http://127.0.0.1:8000/rover HTTP/1.1
 content-type: application/json
 

@@ -280,6 +280,84 @@ pub struct RoverStatus {
     pub user_id: i32,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CalculationRequest {
+    x_values: Vec<i16>,
+    y_values: Vec<i16>,
+    r: f32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CalculationResult {
+    angle: f32,
+    distance: f32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CalculationResponse {
+    results: Vec<CalculationResult>,
+}
+
+pub async fn calculate_handler(
+    Json(request): Json<CalculationRequest>,
+) -> Json<CalculationResponse> {
+    let mut results = Vec::new();
+
+    // Get the minimum length of both arrays to avoid index errors
+    let buffer = std::cmp::min(request.x_values.len(), request.y_values.len());
+
+    println!("----------------------------");
+
+    // First pass: calculate all values
+    for i in 0..buffer {
+        let x = request.x_values[i] as f32;
+        let y = request.y_values[i] as f32;
+        let r = request.r;
+
+        let val = calculate_inverse_sine(y as f32, r as f32);
+        let result = calculate_result(x as f32, r as f32, val);
+
+        results.push(CalculationResult {
+            angle: val * r,
+            distance: result,
+        });
+    }
+
+    // Sort results by distance
+    results.sort_by(|a, b| {
+        a.distance
+            .partial_cmp(&b.distance)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    // Log sorted results with delays
+    for result in &results {
+        println!("Angle : {} Distance : {} ", result.angle, result.distance);
+    }
+
+    Json(CalculationResponse { results })
+}
+
+pub fn calculate_result(x: f32, r: f32, val: f32) -> f32 {
+    let cos_val = r * val.cos();
+    x + cos_val
+}
+
+pub fn calculate_inverse_sine(y: f32, r: f32) -> f32 {
+    if r == 0.0 {
+        println!("Error: Radius cannot be zero");
+        return 0.0;
+    }
+
+    let ratio = y / r;
+    if ratio < -1.0 || ratio > 1.0 {
+        println!("Error: y/r ratio must be between -1 and 1");
+        return 0.0;
+    }
+
+    ratio.asin()
+}
+
 pub async fn update_rover_from_mobile(
     State(state): State<AppState>,
     Json(rover_status): Json<RoverStatus>,
@@ -737,5 +815,29 @@ pub async fn insert_one_from_rover(
     println!("Operation : 20");
     // Return the result wrapped in a JSON response
     image_result_payload.base64_image = "".to_string();
+    image_result_payload.image_result = handle_image_data(&image_result_payload.image_result);
     Ok(Json(image_result_payload))
+}
+
+pub fn handle_image_data(image_result: &Vec<ImageCoordinates>) -> Vec<ImageCoordinates> {
+    let mut results = Vec::new();
+    let r = 30.0;
+    for point in image_result.iter() {
+        // Apply the multipliers as specified
+        let x = point.x * 100.0;
+        let y = point.y * 10.0;
+
+        let val = calculate_inverse_sine(y as f32, r as f32);
+        let result = calculate_result(x as f32, r as f32, val);
+
+        results.push(ImageCoordinates {
+            x: result as f64,
+            y: (val * r) as f64,
+            confidence: 0.0,
+        });
+    }
+
+    // Sort results by distance
+    results.sort_by(|a, b| a.x.partial_cmp(&b.y).unwrap_or(std::cmp::Ordering::Equal));
+    results
 }
