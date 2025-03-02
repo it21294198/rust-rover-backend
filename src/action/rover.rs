@@ -1,4 +1,4 @@
-use std::f32::consts::PI;
+use std::f64::consts::PI;
 
 use crate::AppState;
 use axum::{
@@ -817,24 +817,24 @@ pub async fn insert_one_from_rover(
 
 pub fn handle_image_data(image_result: &Vec<ImageCoordinates>) -> Vec<ImageCoordinates> {
     let mut results = Vec::new();
-    let r = 100.0; // Length of the arm
+    let r = 30.0; // Length of the arm
 
     for point in image_result.iter() {
-        // Scale input coordinates as needed
-        let target_x = point.x * 100.0;
-        let target_y = point.y * 100.0;
+        // Scale input coordinates
+        let target_x = (point.x * 100.0).ceil();
+        let target_y = (point.y * 100.0).ceil();
 
-        // Calculate angle (in radians)
-        // The angle is determined by the target y position and arm length
-        let angle = (target_y / r).asin();
+        // Compute the angle correctly
+        let angle = (target_y / r).atan(); // atan ensures we get a correct angle
 
-        // Calculate real_x (base position)
-        // real_x = target_x - r*cos(angle)
-        let real_x = target_x - r * angle.cos();
+        // Compute real_x correctly
+        let real_x = target_x + r * angle.cos();
 
         results.push(ImageCoordinates {
-            x: real_x as f64,                                 // Horizontal position of the base
-            y: (angle as f64 * 180.0 / std::f64::consts::PI), // Angle in degrees
+            x: real_x.abs().ceil(),         // Base position
+            y: (angle * 180.0 / PI).ceil(), // Convert radians to degrees
+            // x: target_x,
+            // y: target_y,
             confidence: point.confidence,
         });
     }
