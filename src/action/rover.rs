@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use crate::AppState;
 use axum::{
     extract::{Path, State},
@@ -338,24 +340,18 @@ pub async fn calculate_handler(
     Json(CalculationResponse { results })
 }
 
-pub fn calculate_result(x: f32, r: f32, val: f32) -> f32 {
-    let cos_val = r * val.cos();
-    x + cos_val
+fn calculate_inverse_sine(y: f32, r: f32) -> f32 {
+    let ratio = (y / r).clamp(-1.0, 1.0); // Ensure asin() stays in valid domain
+    ratio.asin() // Returns angle in radians
 }
 
-pub fn calculate_inverse_sine(y: f32, r: f32) -> f32 {
-    if r == 0.0 {
-        println!("Error: Radius cannot be zero");
-        return 0.0;
+// Function to calculate the real x position based on the angle
+fn calculate_result(x: f32, r: f32, angle: f32) -> f32 {
+    if x < r {
+        r * angle.cos() // Ensure x does not become invalid
+    } else {
+        x + r * angle.cos()
     }
-
-    let ratio = y / r;
-    if ratio < -1.0 || ratio > 1.0 {
-        println!("Error: y/r ratio must be between -1 and 1");
-        return 0.0;
-    }
-
-    ratio.asin()
 }
 
 pub async fn update_rover_from_mobile(
@@ -821,23 +817,29 @@ pub async fn insert_one_from_rover(
 
 pub fn handle_image_data(image_result: &Vec<ImageCoordinates>) -> Vec<ImageCoordinates> {
     let mut results = Vec::new();
-    let r = 10.0;
-    for point in image_result.iter() {
-        // Apply the multipliers as specified
-        let x = point.x * 100.0;
-        let y = point.y * 1.0;
+    let r = 100.0; // Length of the arm
 
-        let val = calculate_inverse_sine(y as f32, r as f32);
-        let result = calculate_result(x as f32, r as f32, val);
+    for point in image_result.iter() {
+        // Scale input coordinates as needed
+        let target_x = point.x * 100.0;
+        let target_y = point.y * 100.0;
+
+        // Calculate angle (in radians)
+        // The angle is determined by the target y position and arm length
+        let angle = (target_y / r).asin();
+
+        // Calculate real_x (base position)
+        // real_x = target_x - r*cos(angle)
+        let real_x = target_x - r * angle.cos();
 
         results.push(ImageCoordinates {
-            x: result as f64,
-            y: (val * r * 100.0) as f64,
+            x: real_x as f64,                                 // Horizontal position of the base
+            y: (angle as f64 * 180.0 / std::f64::consts::PI), // Angle in degrees
             confidence: point.confidence,
         });
     }
 
-    // here sort the results by x value
+    // Sort results by x value
     results.sort_by(|a, b| a.x.partial_cmp(&b.x).unwrap_or(std::cmp::Ordering::Equal));
     results
 }
