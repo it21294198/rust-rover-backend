@@ -821,23 +821,23 @@ pub async fn insert_one_from_rover(
 
 pub fn handle_image_data(image_result: &Vec<ImageCoordinates>) -> Vec<ImageCoordinates> {
     let mut results = Vec::new();
-    let r = 30.0;
+    let r = 10.0;
     for point in image_result.iter() {
         // Apply the multipliers as specified
         let x = point.x * 100.0;
-        let y = point.y * 10.0;
+        let y = point.y * 1.0;
 
         let val = calculate_inverse_sine(y as f32, r as f32);
         let result = calculate_result(x as f32, r as f32, val);
 
         results.push(ImageCoordinates {
             x: result as f64,
-            y: (val * r) as f64,
-            confidence: 0.0,
+            y: (val * r * 100.0) as f64,
+            confidence: point.confidence,
         });
     }
 
-    // Sort results by distance
-    results.sort_by(|a, b| a.x.partial_cmp(&b.y).unwrap_or(std::cmp::Ordering::Equal));
+    // here sort the results by x value
+    results.sort_by(|a, b| a.x.partial_cmp(&b.x).unwrap_or(std::cmp::Ordering::Equal));
     results
 }
