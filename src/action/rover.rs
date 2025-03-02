@@ -817,7 +817,7 @@ pub async fn insert_one_from_rover(
 
 pub fn handle_image_data(image_result: &Vec<ImageCoordinates>) -> Vec<ImageCoordinates> {
     let mut results = Vec::new();
-    let r = 30.0; // Length of the arm
+    let r = 50.0; // Length of the arm
 
     for point in image_result.iter() {
         // Scale input coordinates
