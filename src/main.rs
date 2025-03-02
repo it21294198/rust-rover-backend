@@ -131,14 +131,14 @@ async fn main(#[shuttle_runtime::Secrets] secrets: SecretStore) -> shuttle_axum:
     // Clone the redis state before moving it into the async block
     let redis_state_clone = app_state.redis.clone();
 
-    // Spawn the cron job in the background
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(60)); // Run every 60 seconds
-        loop {
-            interval.tick().await;
-            perform_cron_task(redis_state_clone.clone()).await;
-        }
-    });
+    // Spawn the cron job in the background - timer_trigger is the function that will run every 60 seconds
+    // tokio::spawn(async move {
+    //     let mut interval = tokio::time::interval(Duration::from_secs(60));
+    //     loop {
+    //         interval.tick().await;
+    //         perform_cron_task(redis_state_clone.clone()).await;
+    //     }
+    // });
 
     let app_ws_state = Arc::new(WebSocketServer::default());
 
