@@ -263,6 +263,9 @@ pub struct OperationState {
     pub six: bool,
     pub time: String,
     pub error: String,
+    pub image: String,
+    pub temp: String,
+    pub humidity: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -485,6 +488,9 @@ pub async fn insert_one_from_rover(
         six: false,
         time: Utc::now().timestamp().to_string(),
         error: "".to_string(),
+        image: operation.image_data.to_string(),
+        temp: operation.temp.to_string(),
+        humidity: operation.humidity.to_string(),
     };
 
     println!("Operation : 2");
