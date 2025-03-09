@@ -841,7 +841,7 @@ pub fn handle_image_data(image_result: &Vec<ImageCoordinates>) -> Vec<ImageCoord
 
         // Compute real_x correctly
         let real_x = target_x + r * angle.cos();
-        let reduce_value = 143.0;
+        let reduce_value = 140.0;
         results.push(ImageCoordinates {
             x: real_x.abs().ceil() - reduce_value, // Base position
             y: (angle * 180.0 / PI).ceil(),        // Convert radians to degrees
