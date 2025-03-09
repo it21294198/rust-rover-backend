@@ -829,7 +829,7 @@ pub async fn insert_one_from_rover(
 
 pub fn handle_image_data(image_result: &Vec<ImageCoordinates>) -> Vec<ImageCoordinates> {
     let mut results = Vec::new();
-    let r = 100.0; // Length of the arm
+    let r = 150.0; // Length of the arm
 
     for point in image_result.iter() {
         // Scale input coordinates
@@ -841,10 +841,10 @@ pub fn handle_image_data(image_result: &Vec<ImageCoordinates>) -> Vec<ImageCoord
 
         // Compute real_x correctly
         let real_x = target_x + r * angle.cos();
-
+        let reduce_value = 143.0;
         results.push(ImageCoordinates {
-            x: real_x.abs().ceil(),         // Base position
-            y: (angle * 180.0 / PI).ceil(), // Convert radians to degrees
+            x: real_x.abs().ceil() - reduce_value, // Base position
+            y: (angle * 180.0 / PI).ceil(),        // Convert radians to degrees
             // x: target_x,
             // y: target_y,
             confidence: point.confidence,
@@ -853,5 +853,6 @@ pub fn handle_image_data(image_result: &Vec<ImageCoordinates>) -> Vec<ImageCoord
 
     // Sort results by x value
     results.sort_by(|a, b| a.x.partial_cmp(&b.x).unwrap_or(std::cmp::Ordering::Equal));
+    results.truncate(5); // Limit to 5 results
     results
 }
