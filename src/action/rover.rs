@@ -806,7 +806,11 @@ pub async fn insert_one_from_rover(
     // store from image modal to server on redis
     opt_state.six = true;
     opt_state.time = Utc::now().timestamp().to_string();
-    opt_state.processed_image = image_result_payload.base64_image.to_string();
+    let base64_image_string = image_result_payload.base64_image.to_string();
+    opt_state.processed_image = base64_image_string
+        .strip_prefix("data:image/png;base64,")
+        .unwrap_or("")
+        .to_string();
     opt_state.image = image_data_json_to_string.clone();
     let _ = match state
         .redis
