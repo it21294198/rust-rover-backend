@@ -198,7 +198,7 @@ pub struct Operation {
     pub metadata: Value,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ImageCoordinates {
     pub x: f64,
     pub y: f64,
@@ -721,6 +721,8 @@ pub async fn insert_one_from_rover(
 
     println!("Operation : 15");
     // Convert image_coordinates to a string
+    image_result_payload.image_result = trim_image_area(&image_result_payload.image_result);
+
     let image_data_json_to_string: String =
         serde_json::to_string(&image_result_payload.image_result).map_err(|e| {
             opt_state.error = e.to_string();
@@ -859,4 +861,21 @@ pub fn handle_image_data(image_result: &Vec<ImageCoordinates>) -> Vec<ImageCoord
     results.sort_by(|a, b| a.x.partial_cmp(&b.x).unwrap_or(std::cmp::Ordering::Equal));
     results.truncate(5); // Limit to 5 results
     results
+}
+
+pub fn trim_image_area(image_result: &Vec<ImageCoordinates>) -> Vec<ImageCoordinates> {
+    // Define the min and max values for x and y
+    let min_x = 0.0;
+    let max_x = 1.0;
+    let min_y = 0.0;
+    let max_y = 1.0;
+
+    // Filter out coordinates that are outside the given range
+    image_result
+        .iter()
+        .filter(|coord| {
+            coord.x >= min_x && coord.x <= max_x && coord.y >= min_y && coord.y <= max_y
+        })
+        .cloned() // Clone each element
+        .collect()
 }
