@@ -490,12 +490,11 @@ pub async fn insert_one_from_rover(
         six: false,
         time: Utc::now().timestamp().to_string(),
         error: "".to_string(),
-        // image: operation.image_data.to_string(),
         image: "".to_string(),
-        processed_image: "".to_string(),
         coordinates: "".to_string(),
         temp: operation.temp.to_string(),
         humidity: operation.humidity.to_string(),
+        processed_image: "".to_string(),
     };
 
     println!("Operation : 2");
@@ -811,7 +810,8 @@ pub async fn insert_one_from_rover(
         .strip_prefix("data:image/png;base64,")
         .unwrap_or("")
         .to_string();
-    opt_state.image = image_data_json_to_string.clone();
+    opt_state.coordinates = image_data_json_to_string.clone();
+    opt_state.image = format!("Random Id : {}", &operation.random_id);
     let _ = match state
         .redis
         .set(
