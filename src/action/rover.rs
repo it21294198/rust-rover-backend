@@ -847,26 +847,31 @@ pub fn handle_image_data(image_result: &Vec<ImageCoordinates>) -> Vec<ImageCoord
         let target_y = (point.y * 100.0).ceil();
 
         // Compute the angle correctly
-        let angle = (target_y / r).atan(); // atan ensures we get a correct angle
+        let angle = (target_y / r).acos();
 
         // Compute real_x correctly
-        let real_x = target_x + r * angle.cos();
-        let reduce_value = 140.0;
-        let actual_x_value = real_x.abs().ceil() - reduce_value;
+        let real_x = target_x + r * angle.sin();
+        // let reduce_value = 140.0;
+        // let actual_x_value = real_x.abs().ceil() - reduce_value;
+        // let actual_y_value = (angle * 180.0 / PI).ceil();
+        let actual_x_value = real_x.abs().ceil();
         let actual_y_value = (angle * 180.0 / PI).ceil();
         results.push(ImageCoordinates {
             x: if actual_x_value < 0.0 {
                 0.0
             } else {
                 // actual_x_value
-                map_converter(actual_x_value, 0.0, 105.0, 0.0, 30.0)
+                map_converter(actual_x_value, 125.0, 250.0, 0.0, 30.0)
                     .abs()
                     .ceil()
             },
             y: if actual_y_value < 0.0 {
                 0.0
             } else {
-                actual_y_value
+                // actual_y_value
+                map_converter(actual_y_value, 87.0, 52.0, 0.0, 90.0)
+                    .abs()
+                    .ceil()
             },
             confidence: point.confidence,
         });
