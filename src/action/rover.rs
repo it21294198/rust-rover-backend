@@ -839,12 +839,14 @@ pub fn map_converter(x: f64, in_min: f64, in_max: f64, out_min: f64, out_max: f6
 
 pub fn handle_image_data(image_result: &Vec<ImageCoordinates>) -> Vec<ImageCoordinates> {
     let mut results = Vec::new();
-    let r = 150.0; // Length of the arm
+    let r = 230.0; // Length of the arm
 
     for point in image_result.iter() {
         // Scale input coordinates
-        let target_x = (point.x * 100.0).ceil();
-        let target_y = (point.y * 100.0).ceil();
+        let x = 190.0;
+        let y = 230.0;
+        let target_x = (point.x * x).ceil();
+        let target_y = (point.y * y).ceil();
 
         // Compute the angle correctly
         let angle = (target_y / r).acos();
@@ -861,7 +863,7 @@ pub fn handle_image_data(image_result: &Vec<ImageCoordinates>) -> Vec<ImageCoord
                 0.0
             } else {
                 // actual_x_value
-                map_converter(actual_x_value, 125.0, 250.0, 0.0, 30.0)
+                map_converter(actual_x_value, 90.0, 410.0, 0.0, 30.0)
                     .abs()
                     .ceil()
             },
@@ -869,7 +871,7 @@ pub fn handle_image_data(image_result: &Vec<ImageCoordinates>) -> Vec<ImageCoord
                 0.0
             } else {
                 // actual_y_value
-                map_converter(actual_y_value, 87.0, 52.0, 0.0, 90.0)
+                map_converter(actual_y_value, 87.0, 20.0, 0.0, 90.0)
                     .abs()
                     .ceil()
             },
