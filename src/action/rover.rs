@@ -833,6 +833,10 @@ pub async fn insert_one_from_rover(
     Ok(Json(image_result_payload))
 }
 
+pub fn map_converter(x: f64, in_min: f64, in_max: f64, out_min: f64, out_max: f64) -> f64 {
+    (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+}
+
 pub fn handle_image_data(image_result: &Vec<ImageCoordinates>) -> Vec<ImageCoordinates> {
     let mut results = Vec::new();
     let r = 150.0; // Length of the arm
@@ -848,11 +852,22 @@ pub fn handle_image_data(image_result: &Vec<ImageCoordinates>) -> Vec<ImageCoord
         // Compute real_x correctly
         let real_x = target_x + r * angle.cos();
         let reduce_value = 140.0;
+        let actual_x_value = real_x.abs().ceil() - reduce_value;
+        let actual_y_value = (angle * 180.0 / PI).ceil();
         results.push(ImageCoordinates {
-            x: real_x.abs().ceil() - reduce_value, // Base position
-            y: (angle * 180.0 / PI).ceil(),        // Convert radians to degrees
-            // x: target_x,
-            // y: target_y,
+            x: if actual_x_value < 0.0 {
+                0.0
+            } else {
+                // actual_x_value
+                map_converter(actual_x_value, 0.0, 105.0, 0.0, 30.0)
+                    .abs()
+                    .ceil()
+            },
+            y: if actual_y_value < 0.0 {
+                0.0
+            } else {
+                actual_y_value
+            },
             confidence: point.confidence,
         });
     }
